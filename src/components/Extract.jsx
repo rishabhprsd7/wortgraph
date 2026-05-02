@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { extractedWords, sampleText } from '../data/vocab';
 import { IconKeyboard, IconPaste, IconCheck } from './Icons';
 
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${import.meta.env.VITE_GEMINI_KEY}`;
+const GEMINI_KEY = import.meta.env.VITE_GEMINI_KEY;
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`;
 
 const PROMPT = (text) => `You are a German language teacher. Extract vocabulary words worth learning from this German text.
 
@@ -65,7 +66,8 @@ export function Extract() {
         : fallbackExtract(text);
       setExtracted(words);
     } catch (e) {
-      setError("Couldn't reach Gemini — showing demo words instead.");
+      console.error("Gemini error:", e);
+      setError(`Error: ${e.message} — showing demo words instead.`);
       setExtracted(fallbackExtract(text));
     } finally {
       setLoading(false);
