@@ -4,6 +4,7 @@ import { IconKeyboard, IconPaste, IconCheck } from './Icons';
 
 const GROQ_KEY = import.meta.env.VITE_GROQ_KEY;
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 const PROMPT = (text) => {
   const wordCount = text.trim().split(/\s+/).length;
@@ -56,12 +57,23 @@ function fallbackExtract(text) {
   return [...inText, ...rest.slice(0, 8 - inText.length)];
 }
 
+async function saveWordsToDeck(words, source) {
+  if (!API_URL) return;
+  await fetch(`${API_URL}/api/words`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ words, source, userId: 'default' })
+  });
+}
+
 export function Extract() {
   const [text, setText] = useState("");
   const [source, setSource] = useState("Article");
   const [extracted, setExtracted] = useState([]);
   const [added, setAdded] = useState(new Set());
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [error, setError] = useState(null);
 
   const hasApiKey = !!GROQ_KEY;
@@ -72,6 +84,7 @@ export function Extract() {
     setLoading(true);
     setExtracted([]);
     setAdded(new Set());
+    setSaved(false);
     setError(null);
 
     try {
@@ -98,6 +111,20 @@ export function Extract() {
   };
 
   const addAll = () => setAdded(new Set(extracted.map(w => w.word)));
+
+  const saveSelected = async () => {
+    const selectedWords = extracted.filter(w => added.has(w.word));
+    if (selectedWords.length === 0) return;
+    setSaving(true);
+    try {
+      await saveWordsToDeck(selectedWords, source);
+      setSaved(true);
+    } catch (e) {
+      console.error('Save error:', e);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="extract-wrap">
@@ -177,9 +204,18 @@ export function Extract() {
           {!loading && (
             <div className="er-foot">
               <span className="er-foot-meta">{added.size} of {extracted.length} selected</span>
-              <button className="btn btn-primary btn-sm" onClick={addAll}>
-                Add all to flashcard deck
-              </button>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn btn-ghost btn-sm" onClick={addAll} disabled={added.size === extracted.length}>
+                  Select all
+                </button>
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={saveSelected}
+                  disabled={added.size === 0 || saving || saved}
+                >
+                  {saved ? <><IconCheck /> Saved to deck</> : saving ? "Saving…" : `Add ${added.size} to flashcard deck`}
+                </button>
+              </div>
             </div>
           )}
         </div>
