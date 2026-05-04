@@ -2,34 +2,48 @@ import { useState } from 'react';
 import { extractedWords, sampleText } from '../data/vocab';
 import { IconKeyboard, IconPaste, IconCheck } from './Icons';
 
-const GEMINI_KEY = import.meta.env.VITE_GEMINI_KEY;
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`;
+const GROQ_KEY = import.meta.env.VITE_GROQ_KEY;
+const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
-const PROMPT = (text) => `You are a German language teacher. Extract vocabulary words worth learning from this German text.
+const PROMPT = (text) => {
+  const wordCount = text.trim().split(/\s+/).length;
+  const target = Math.max(8, Math.round(wordCount * 0.15));
+  return `You are a strict German language teacher selecting vocabulary for a B1+ learner.
 
-Return ONLY a valid JSON array — no markdown, no explanation, nothing else.
-Each item: {"article":"die/der/das or empty string","word":"base/lemma form","cefr":"A2/B1/B2/C1/C2"}
-- Nouns: include article (der/die/das), use nominative singular
-- Verbs & adjectives: article = ""
-- Focus on B1 level and above, skip very common words (haben, sein, und, die, etc.)
-- Return 8–16 words max
+Extract exactly ${target} words from this text. Return ONLY a JSON array, no markdown, no explanation.
+Each item: {"article":"der/die/das or empty string","word":"base lemma","cefr":"B1/B2/C1/C2"}
+
+INCLUDE:
+- Genuinely German words a learner would need to look up
+- Useful nouns, verbs, adjectives at B1 level or above
+- Compound words specific to German (e.g. Krafttraining, Kniebeugen)
+
+EXCLUDE — do not include any of these:
+- Proper nouns: place names (Berlin, Prenzlauer Berg, Tiergarten), people names, brand names
+- Obvious English loanwords already known to English speakers: Gym, Training, Marathon, Smoothie, Fitness, Studio, Podcast, etc.
+- A1/A2 basics: haben, sein, gehen, kommen, machen, sagen, gut, groß, klein, Tag, Stadt, etc.
+- The article must always be der/die/das — never ein/eine
 
 Text:
 ${text}`;
+};
 
-async function extractWithGemini(text) {
-  const res = await fetch(GEMINI_URL, {
+async function extractWithGroq(text) {
+  const res = await fetch(GROQ_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${GROQ_KEY}`
+    },
     body: JSON.stringify({
-      contents: [{ parts: [{ text: PROMPT(text) }] }],
-      generationConfig: { temperature: 0.1 }
+      model: 'llama-3.3-70b-versatile',
+      messages: [{ role: 'user', content: PROMPT(text) }],
+      temperature: 0.1
     })
   });
-  if (!res.ok) throw new Error(`Gemini error ${res.status}`);
+  if (!res.ok) throw new Error(`Groq error ${res.status}: ${await res.text()}`);
   const data = await res.json();
-  const raw = data.candidates[0].content.parts[0].text.trim();
-  // strip markdown code fences if present
+  const raw = data.choices[0].message.content.trim();
   const json = raw.replace(/^```json\n?/, '').replace(/^```\n?/, '').replace(/\n?```$/, '');
   return JSON.parse(json);
 }
@@ -50,7 +64,7 @@ export function Extract() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const hasApiKey = !!import.meta.env.VITE_GEMINI_KEY;
+  const hasApiKey = !!GROQ_KEY;
   const sources = ["Article", "Interview", "Podcast", "YouTube"];
 
   const onExtract = async () => {
@@ -62,11 +76,11 @@ export function Extract() {
 
     try {
       const words = hasApiKey
-        ? await extractWithGemini(text)
+        ? await extractWithGroq(text)
         : fallbackExtract(text);
       setExtracted(words);
     } catch (e) {
-      console.error("Gemini error:", e);
+      console.error("Groq error:", e);
       setError(`Error: ${e.message} — showing demo words instead.`);
       setExtracted(fallbackExtract(text));
     } finally {
@@ -92,8 +106,8 @@ export function Extract() {
         <div className="dz-title">Paste German text, article, or transcript</div>
         <div className="dz-sub">
           {hasApiKey
-            ? "Powered by Gemini AI · extracts real vocabulary from any text"
-            : "Add VITE_GEMINI_KEY to .env to enable AI extraction"}
+            ? "Powered by Groq AI · extracts real vocabulary from any text"
+            : "Add VITE_GROQ_KEY to .env to enable AI extraction"}
         </div>
         <textarea
           className="dz-textarea"
@@ -134,7 +148,7 @@ export function Extract() {
           <div className="er-head">
             <span className="er-title">Extracted vocabulary</span>
             <span className="er-meta">
-              {loading ? "Analyzing with Gemini AI…" : `${extracted.length} words · ${source}`}
+              {loading ? "Analyzing with Groq AI…" : `${extracted.length} words · ${source}`}
             </span>
           </div>
           <div className="er-body">
