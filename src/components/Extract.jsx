@@ -12,7 +12,7 @@ const PROMPT = (text) => {
   return `You are a strict German language teacher selecting vocabulary for a B1+ learner.
 
 Extract exactly ${target} words from this text. Return ONLY a JSON array, no markdown, no explanation.
-Each item: {"article":"der/die/das or empty string","word":"base lemma","cefr":"B1/B2/C1/C2","translation":"English meaning in 2-4 words","example":"one short German sentence using the word"}
+Each item: {"article":"der/die/das or empty string","word":"base lemma","cefr":"B1/B2/C1/C2","translation":"English meaning in 2-4 words","example":"one short German sentence using the word","exampleTranslation":"English translation of that sentence"}
 
 INCLUDE:
 - Genuinely German words a learner would need to look up

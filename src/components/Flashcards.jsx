@@ -111,6 +111,7 @@ export function Flashcards({ words: propWords }) {
   const cefr = card.cefr ?? '';
   const translation = card.translation ?? card.translationEn ?? '';
   const example = card.example ?? '';
+  const exampleTranslation = card.exampleTranslation ?? '';
   const topic = card.topic ?? '';
 
   return (
@@ -143,24 +144,41 @@ export function Flashcards({ words: propWords }) {
           </div>
 
           {/* Back */}
-          <div className="face face-back">
+          <div className="face face-back" style={{ justifyContent: 'flex-start', paddingTop: 28 }}>
             <span className="face-corner">BACK</span>
             <button
               onClick={e => { e.stopPropagation(); speak(word); }}
               style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,0.12)', border: 'none', borderRadius: 8, padding: '6px 8px', cursor: 'pointer', color: 'rgba(255,255,255,0.7)', display: 'flex', alignItems: 'center' }}
               title="Listen"
-            >
-              <IconSound />
-            </button>
-            <div className="card-meta">
-              <span className="article" style={{ color: '#9d96e8' }}>{article}</span>
-              <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: 13 }}>{word}</span>
+            ><IconSound /></button>
+
+            {/* Word label */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+              <span style={{ color: '#9d96e8', fontSize: 13, fontWeight: 500 }}>{article}</span>
+              <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>{word}</span>
+              {cefr && <span style={{ fontSize: 11, fontWeight: 700, padding: '1px 7px', borderRadius: 10, background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)' }}>{cefr}</span>}
             </div>
-            <p className="translation">{translation || 'Did you know this word?'}</p>
+
+            {/* Translation */}
+            <div style={{ fontSize: 28, fontWeight: 700, color: '#fff', marginBottom: 20, lineHeight: 1.2 }}>
+              {translation || '—'}
+            </div>
+
+            {/* Divider */}
+            {example && <div style={{ width: '100%', height: '0.5px', background: 'rgba(255,255,255,0.12)', marginBottom: 16 }} />}
+
+            {/* Example */}
             {example && (
-              <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, fontStyle: 'italic', margin: '8px 0 0', lineHeight: 1.5 }}>
-                „{example}"
-              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 13, fontStyle: 'italic', margin: 0, lineHeight: 1.6 }}>
+                  „{example}"
+                </p>
+                {exampleTranslation && (
+                  <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, margin: 0, lineHeight: 1.5 }}>
+                    {exampleTranslation}
+                  </p>
+                )}
+              </div>
             )}
           </div>
         </div>
