@@ -68,21 +68,43 @@ app.post('/api/words', async (req, res) => {
       { sourceId, type: source, snippet }
     );
 
-    // Upsert each word and link to user + source
+    // Topic node: one per source type (Article, Politics, Climate, etc.)
+    await runQuery(
+      'MERGE (t:Topic {name: $topic}) ON CREATE SET t.createdAt = timestamp()',
+      { topic: source }
+    );
+
+    // Upsert each word and link to user + source + topic
     for (const w of words) {
       await runQuery(`
         MERGE (word:Word {lemma: $lemma})
         ON CREATE SET word.article = $article, word.cefr = $cefr, word.translation = $translation, word.example = $example, word.exampleTranslation = $exampleTranslation, word.addedAt = timestamp()
         ON MATCH SET word.cefr = $cefr, word.translation = $translation, word.example = $example, word.exampleTranslation = $exampleTranslation
         WITH word
-        MATCH (u:User {id: $userId}), (s:Source {id: $sourceId})
+        MATCH (u:User {id: $userId}), (s:Source {id: $sourceId}), (t:Topic {name: $topic})
         MERGE (u)-[r:ADDED]->(word)
         ON CREATE SET r.addedAt = timestamp(), r.reviewCount = 0, r.retention = 0
         MERGE (word)-[:EXTRACTED_FROM]->(s)
-      `, { lemma: w.word, article: w.article || '', cefr: w.cefr || 'B1', translation: w.translation || '', example: w.example || '', exampleTranslation: w.exampleTranslation || '', userId, sourceId });
+        MERGE (word)-[:BELONGS_TO]->(t)
+      `, { lemma: w.word, article: w.article || '', cefr: w.cefr || 'B1', translation: w.translation || '', example: w.example || '', exampleTranslation: w.exampleTranslation || '', userId, sourceId, topic: source });
     }
 
-    res.json({ saved: words.length });
+    // CO_OCCURS_WITH: connect every pair of words from this source.
+    // Strength increments each time the pair shows up together in a new source.
+    const lemmas = words.map(w => w.word);
+    if (lemmas.length >= 2) {
+      await runQuery(`
+        UNWIND $lemmas AS a
+        UNWIND $lemmas AS b
+        WITH a, b WHERE a < b
+        MATCH (wa:Word {lemma: a}), (wb:Word {lemma: b})
+        MERGE (wa)-[r:CO_OCCURS_WITH]-(wb)
+        ON CREATE SET r.strength = 1, r.firstSeen = timestamp()
+        ON MATCH SET r.strength = r.strength + 1
+      `, { lemmas });
+    }
+
+    res.json({ saved: words.length, edges: lemmas.length * (lemmas.length - 1) / 2 });
   } catch (e) {
     console.error('Save words error:', e);
     res.status(500).json({ error: e.message });
@@ -237,6 +259,234 @@ app.get('/api/agent/suggest', async (req, res) => {
   }
 });
 
+// Backfill graph edges for existing data (run once after schema upgrade).
+// POST /api/backfill  { userId }
+app.post('/api/backfill', async (req, res) => {
+  const { userId = 'default' } = req.body;
+  try {
+    // 1. Ensure every Word that came from a Source has a BELONGS_TO edge to a Topic of that source's type.
+    await runQuery(`
+      MATCH (w:Word)-[:EXTRACTED_FROM]->(s:Source)
+      WITH DISTINCT w, s.type AS topicName
+      MERGE (t:Topic {name: topicName})
+      MERGE (w)-[:BELONGS_TO]->(t)
+    `);
+
+    // 2. For every Source, create CO_OCCURS_WITH edges between all word pairs from it.
+    const sources = await runQuery(`MATCH (s:Source) RETURN s.id AS id`);
+    let edgeCount = 0;
+    for (const sRec of sources) {
+      const sourceId = sRec.get('id');
+      const wRec = await runQuery(`
+        MATCH (w:Word)-[:EXTRACTED_FROM]->(s:Source {id: $sourceId})
+        RETURN collect(w.lemma) AS lemmas
+      `, { sourceId });
+      const lemmas = wRec[0]?.get('lemmas') || [];
+      if (lemmas.length < 2) continue;
+      await runQuery(`
+        UNWIND $lemmas AS a
+        UNWIND $lemmas AS b
+        WITH a, b WHERE a < b
+        MATCH (wa:Word {lemma: a}), (wb:Word {lemma: b})
+        MERGE (wa)-[r:CO_OCCURS_WITH]-(wb)
+        ON CREATE SET r.strength = 1, r.firstSeen = timestamp()
+        ON MATCH SET r.strength = r.strength + 1
+      `, { lemmas });
+      edgeCount += lemmas.length * (lemmas.length - 1) / 2;
+    }
+
+    // 3. Report what we touched.
+    const stats = await runQuery(`
+      MATCH (w:Word) WITH count(w) AS words
+      MATCH ()-[c:CO_OCCURS_WITH]->() WITH words, count(c) AS coEdges
+      MATCH (t:Topic) RETURN words, coEdges, count(t) AS topics
+    `);
+    res.json({
+      ok: true,
+      processedSources: sources.length,
+      newEdgesEstimate: edgeCount,
+      stats: {
+        words: stats[0]?.get('words')?.toNumber?.() ?? 0,
+        coOccurrenceEdges: stats[0]?.get('coEdges')?.toNumber?.() ?? 0,
+        topics: stats[0]?.get('topics')?.toNumber?.() ?? 0,
+      }
+    });
+  } catch (e) {
+    console.error('Backfill error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Graph-aware insights — the heart of "make your graph matter".
+// Each insight returns reasoning + the Cypher pattern that produced it.
+// GET /api/agent/insight?userId=default
+app.get('/api/agent/insight', async (req, res) => {
+  const { userId = 'default' } = req.query;
+  try {
+    const cyphers = {
+      bridges: `
+        // BRIDGE WORDS: words you don't know that connect two clusters of words you do know.
+        // Each bridge candidate is a Word linked by CO_OCCURS_WITH to >= 2 words in the user's deck,
+        // ranked by total co-occurrence strength.
+        MATCH (u:User {id: $userId})-[:ADDED]->(known:Word)
+        MATCH (known)-[r:CO_OCCURS_WITH]-(candidate:Word)
+        WHERE NOT EXISTS { (u)-[:ADDED]->(candidate) }
+        WITH candidate, count(DISTINCT known) AS bridgeDegree, sum(r.strength) AS totalStrength,
+             collect(DISTINCT known.lemma)[0..5] AS connectedTo
+        WHERE bridgeDegree >= 2
+        RETURN candidate.lemma AS word, candidate.article AS article,
+               candidate.cefr AS cefr, candidate.translation AS translation,
+               bridgeDegree, totalStrength, connectedTo
+        ORDER BY bridgeDegree DESC, totalStrength DESC
+        LIMIT 5
+      `,
+      weakClusters: `
+        // WEAK CLUSTERS: topics where average retention is lowest.
+        // Helps the user focus on the cluster, not just isolated words.
+        MATCH (u:User {id: $userId})-[r:ADDED]->(w:Word)-[:BELONGS_TO]->(t:Topic)
+        WHERE r.reviewCount > 0
+        WITH t.name AS topic, avg(r.retention) AS avgRetention,
+             count(w) AS size, collect(w.lemma)[0..3] AS sampleWords
+        WHERE size >= 3
+        RETURN topic, avgRetention, size, sampleWords
+        ORDER BY avgRetention ASC
+        LIMIT 5
+      `,
+      centralWeakWords: `
+        // HIGH-LEVERAGE WEAK WORDS: weak words that touch the most other words in your deck.
+        // Fixing these unblocks the most reading comprehension.
+        MATCH (u:User {id: $userId})-[r:ADDED]->(w:Word)
+        WHERE r.reviewCount > 0 AND r.retention < 65
+        OPTIONAL MATCH (w)-[c:CO_OCCURS_WITH]-(neighbor:Word)<-[:ADDED]-(u)
+        WITH w, r.retention AS retention, count(DISTINCT neighbor) AS reach
+        WHERE reach > 0
+        RETURN w.lemma AS word, w.article AS article, w.translation AS translation,
+               retention, reach
+        ORDER BY reach DESC, retention ASC
+        LIMIT 5
+      `,
+      twinWords: `
+        // TWIN WORDS: pairs in your deck that nearly always co-occur.
+        // High strength = they're effectively a phrase or topical pair.
+        MATCH (u:User {id: $userId})-[:ADDED]->(a:Word)-[r:CO_OCCURS_WITH]-(b:Word)<-[:ADDED]-(u)
+        WHERE id(a) < id(b)
+        RETURN a.lemma AS w1, b.lemma AS w2, r.strength AS strength
+        ORDER BY r.strength DESC
+        LIMIT 5
+      `,
+    };
+
+    const [bridges, weakClusters, central, twins] = await Promise.all([
+      runQuery(cyphers.bridges, { userId }),
+      runQuery(cyphers.weakClusters, { userId }),
+      runQuery(cyphers.centralWeakWords, { userId }),
+      runQuery(cyphers.twinWords, { userId }),
+    ]);
+
+    const num = (v) => v?.toNumber?.() ?? v ?? 0;
+
+    res.json({
+      bridges: {
+        title: 'Bridge words',
+        reasoning: 'Words you haven\'t added yet that link two or more clusters of words you already know. Learn one of these and your existing vocabulary instantly becomes more connected.',
+        cypher: cyphers.bridges.trim(),
+        results: bridges.map(r => ({
+          word: r.get('word'),
+          article: r.get('article'),
+          cefr: r.get('cefr'),
+          translation: r.get('translation'),
+          bridgeDegree: num(r.get('bridgeDegree')),
+          totalStrength: num(r.get('totalStrength')),
+          connectedTo: r.get('connectedTo'),
+        })),
+      },
+      weakClusters: {
+        title: 'Weak topic clusters',
+        reasoning: 'Topics where your retention is lowest, weighted by how many words you\'ve studied in each. A weak cluster is a sign of a comprehension hole — fix the cluster, not single words.',
+        cypher: cyphers.weakClusters.trim(),
+        results: weakClusters.map(r => ({
+          topic: r.get('topic'),
+          avgRetention: Math.round(num(r.get('avgRetention'))),
+          size: num(r.get('size')),
+          sampleWords: r.get('sampleWords'),
+        })),
+      },
+      centralWeakWords: {
+        title: 'High-leverage weak words',
+        reasoning: 'Weak words ranked by how many other words in your deck they connect to. Reviewing one of these strengthens many co-occurring words by association.',
+        cypher: cyphers.centralWeakWords.trim(),
+        results: central.map(r => ({
+          word: r.get('word'),
+          article: r.get('article'),
+          translation: r.get('translation'),
+          retention: num(r.get('retention')),
+          reach: num(r.get('reach')),
+        })),
+      },
+      twinWords: {
+        title: 'Twin words',
+        reasoning: 'Pairs from your deck that almost always appear together — likely collocations or topical pairs. Practising them as a unit is faster than separately.',
+        cypher: cyphers.twinWords.trim(),
+        results: twins.map(r => ({
+          w1: r.get('w1'),
+          w2: r.get('w2'),
+          strength: num(r.get('strength')),
+        })),
+      },
+    });
+  } catch (e) {
+    console.error('Insight error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Graph data for visualization.
+// Returns nodes (Words user has added) + CO_OCCURS_WITH edges between them.
+// GET /api/graph?userId=default&minStrength=1
+app.get('/api/graph', async (req, res) => {
+  const { userId = 'default' } = req.query;
+  const minStrength = parseInt(req.query.minStrength || '1', 10);
+  try {
+    const nodeRecords = await runQuery(`
+      MATCH (u:User {id: $userId})-[r:ADDED]->(w:Word)
+      OPTIONAL MATCH (w)-[:BELONGS_TO]->(t:Topic)
+      RETURN w.lemma AS lemma, w.article AS article, w.cefr AS cefr,
+             coalesce(w.translation, '') AS translation,
+             coalesce(r.retention, 0) AS retention,
+             coalesce(r.reviewCount, 0) AS reviews,
+             collect(DISTINCT t.name) AS topics
+    `, { userId });
+
+    const edgeRecords = await runQuery(`
+      MATCH (u:User {id: $userId})-[:ADDED]->(a:Word)-[r:CO_OCCURS_WITH]-(b:Word)<-[:ADDED]-(u)
+      WHERE id(a) < id(b) AND r.strength >= $minStrength
+      RETURN a.lemma AS source, b.lemma AS target, r.strength AS strength
+    `, { userId, minStrength });
+
+    const num = (v) => v?.toNumber?.() ?? v ?? 0;
+
+    res.json({
+      nodes: nodeRecords.map(r => ({
+        id: r.get('lemma'),
+        article: r.get('article'),
+        cefr: r.get('cefr'),
+        translation: r.get('translation'),
+        retention: num(r.get('retention')),
+        reviews: num(r.get('reviews')),
+        topics: r.get('topics') || [],
+      })),
+      edges: edgeRecords.map(r => ({
+        source: r.get('source'),
+        target: r.get('target'),
+        strength: num(r.get('strength')),
+      })),
+    });
+  } catch (e) {
+    console.error('Graph error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // AI Agent: conversational chat with Neo4j context
 // POST /api/agent/chat  { userId, message, history: [{role, content}] }
 app.post('/api/agent/chat', async (req, res) => {
@@ -245,8 +495,9 @@ app.post('/api/agent/chat', async (req, res) => {
   if (!groqKey) return res.status(500).json({ error: 'GROQ_KEY not set on server' });
 
   try {
-    // Pull graph context from Neo4j
-    const [wordRecords, weakRecords] = await Promise.all([
+    // Pull rich graph context from Neo4j: deck + weak words + bridge words + topic clusters + twin pairs
+    const num = (v) => v?.toNumber?.() ?? v ?? 0;
+    const [wordRecords, weakRecords, bridgeRecords, clusterRecords, twinRecords] = await Promise.all([
       runQuery(`
         MATCH (u:User {id: $userId})-[r:ADDED]->(w:Word)
         RETURN w.lemma AS word, w.article AS article, w.cefr AS cefr,
@@ -258,29 +509,58 @@ app.post('/api/agent/chat', async (req, res) => {
         WHERE r.reviewCount > 0 AND r.retention < 65
         RETURN w.lemma AS word, r.retention AS retention
         ORDER BY r.retention ASC LIMIT 10
-      `, { userId })
+      `, { userId }),
+      runQuery(`
+        MATCH (u:User {id: $userId})-[:ADDED]->(known:Word)-[r:CO_OCCURS_WITH]-(candidate:Word)
+        WHERE NOT EXISTS { (u)-[:ADDED]->(candidate) }
+        WITH candidate, count(DISTINCT known) AS deg, collect(DISTINCT known.lemma)[0..4] AS via
+        WHERE deg >= 2
+        RETURN candidate.lemma AS word, candidate.cefr AS cefr, deg, via
+        ORDER BY deg DESC LIMIT 5
+      `, { userId }),
+      runQuery(`
+        MATCH (u:User {id: $userId})-[r:ADDED]->(w:Word)-[:BELONGS_TO]->(t:Topic)
+        WITH t.name AS topic, avg(r.retention) AS avgRet, count(w) AS size
+        WHERE size >= 2
+        RETURN topic, avgRet, size
+        ORDER BY avgRet ASC LIMIT 5
+      `, { userId }),
+      runQuery(`
+        MATCH (u:User {id: $userId})-[:ADDED]->(a:Word)-[r:CO_OCCURS_WITH]-(b:Word)<-[:ADDED]-(u)
+        WHERE id(a) < id(b)
+        RETURN a.lemma AS w1, b.lemma AS w2, r.strength AS s
+        ORDER BY r.strength DESC LIMIT 5
+      `, { userId }),
     ]);
 
     const words = wordRecords.map(r => ({
       word: r.get('word'), article: r.get('article'), cefr: r.get('cefr'),
-      retention: r.get('retention')?.toNumber?.() ?? 0,
-      reviews: r.get('reviews')?.toNumber?.() ?? 0
+      retention: num(r.get('retention')), reviews: num(r.get('reviews'))
     }));
-    const weakWords = weakRecords.map(r => `${r.get('word')} (${r.get('retention')?.toNumber?.() ?? 0}%)`);
+    const weakWords = weakRecords.map(r => `${r.get('word')} (${num(r.get('retention'))}%)`);
+    const bridges = bridgeRecords.map(r => `${r.get('word')} [${r.get('cefr')}] connects ${num(r.get('deg'))} known words via ${(r.get('via') || []).join(', ')}`);
+    const clusters = clusterRecords.map(r => `${r.get('topic')}: ${num(r.get('size'))} words, avg retention ${Math.round(num(r.get('avgRet')))}%`);
+    const twins = twinRecords.map(r => `${r.get('w1')} ↔ ${r.get('w2')} (×${num(r.get('s'))})`);
 
     const cefrDist = words.reduce((acc, w) => { acc[w.cefr] = (acc[w.cefr] || 0) + 1; return acc; }, {});
 
-    const context = `You are an AI German language coach built into Wortgraph, a vocabulary learning app.
-You have access to the learner's Neo4j graph database. Here is their current data:
+    const context = `You are an AI German language coach built into Wortgraph. You have direct access to the learner's Neo4j graph and you reason about it as a graph, not a list.
 
-Total words in deck: ${words.length}
-CEFR distribution: ${JSON.stringify(cefrDist)}
-Recent words: ${words.slice(0, 20).map(w => `${w.article} ${w.word} (${w.cefr}, ${w.retention}% retention)`).join(', ')}
-Weak words needing review: ${weakWords.length > 0 ? weakWords.join(', ') : 'none'}
+THE LEARNER'S GRAPH:
+- Words in deck: ${words.length}
+- CEFR distribution: ${JSON.stringify(cefrDist)}
+- Recent words: ${words.slice(0, 15).map(w => `${w.article} ${w.word} (${w.cefr}, ${w.retention}%)`).join(', ')}
+- Weak words: ${weakWords.length ? weakWords.join(', ') : 'none yet'}
+- Topic clusters (sorted by weakness): ${clusters.length ? clusters.join(' | ') : 'none yet'}
+- Bridge words to add (in graph but not in deck, linking known words): ${bridges.length ? bridges.join(' | ') : 'none yet'}
+- Twin pairs (high CO_OCCURS_WITH strength in deck): ${twins.length ? twins.join(', ') : 'none yet'}
 
-Answer the learner's question concisely. If they ask about specific words, use their actual graph data above.
-If they ask for suggestions, base them on gaps in their CEFR distribution.
-Keep responses under 150 words. Be encouraging and specific.`;
+HOW TO ANSWER:
+- Reason in terms of clusters, bridges, and connections — not just isolated words.
+- When you make a recommendation, briefly state WHY using the graph data (e.g. "because it bridges 4 words you already know").
+- Be specific. Cite actual words from the data above.
+- Be encouraging and concise (under 150 words).
+- If asked something the graph can't answer, say so honestly.`;
 
     const messages = [
       { role: 'system', content: context },

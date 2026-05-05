@@ -7,7 +7,7 @@ import { Learn } from './components/Learn';
 import { Extract } from './components/Extract';
 import { Dashboard } from './components/Dashboard';
 import { Agent } from './components/Agent';
-import { IconGraph } from './components/Icons';
+import { Graph } from './components/Graph';
 
 function ScreenHeader({ title, sub, right }) {
   return (
@@ -65,25 +65,10 @@ export default function App() {
             {route === "graph" && (
               <>
                 <ScreenHeader
-                  title="Word graph"
-                  sub="Explore connections between roots, related forms, and topics"
+                  title="Your vocabulary graph"
+                  sub="Every word you've saved, connected to others by CO_OCCURS_WITH edges from shared sources"
                 />
-                <div style={{
-                  border: "0.5px solid var(--line)",
-                  borderRadius: 12,
-                  background: "var(--bg-2)",
-                  minHeight: 520,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "var(--ink-3)",
-                  fontSize: 13
-                }}>
-                  <div style={{ textAlign: "center" }}>
-                    <div style={{ marginBottom: 12, opacity: 0.6 }}><IconGraph /></div>
-                    <div>Interactive graph view — coming next iteration</div>
-                  </div>
-                </div>
+                <Graph />
               </>
             )}
             {route === "agent" && (
