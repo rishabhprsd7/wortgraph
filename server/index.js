@@ -206,6 +206,71 @@ app.get('/api/agent/suggest', async (req, res) => {
   }
 });
 
+// AI Agent: conversational chat with Neo4j context
+// POST /api/agent/chat  { userId, message, history: [{role, content}] }
+app.post('/api/agent/chat', async (req, res) => {
+  const { userId = 'default', message, history = [] } = req.body;
+  const groqKey = process.env.GROQ_KEY;
+  if (!groqKey) return res.status(500).json({ error: 'GROQ_KEY not set on server' });
+
+  try {
+    // Pull graph context from Neo4j
+    const [wordRecords, weakRecords] = await Promise.all([
+      runQuery(`
+        MATCH (u:User {id: $userId})-[r:ADDED]->(w:Word)
+        RETURN w.lemma AS word, w.article AS article, w.cefr AS cefr,
+               coalesce(r.retention, 0) AS retention, coalesce(r.reviewCount, 0) AS reviews
+        ORDER BY r.addedAt DESC LIMIT 50
+      `, { userId }),
+      runQuery(`
+        MATCH (u:User {id: $userId})-[r:ADDED]->(w:Word)
+        WHERE r.reviewCount > 0 AND r.retention < 65
+        RETURN w.lemma AS word, r.retention AS retention
+        ORDER BY r.retention ASC LIMIT 10
+      `, { userId })
+    ]);
+
+    const words = wordRecords.map(r => ({
+      word: r.get('word'), article: r.get('article'), cefr: r.get('cefr'),
+      retention: r.get('retention')?.toNumber?.() ?? 0,
+      reviews: r.get('reviews')?.toNumber?.() ?? 0
+    }));
+    const weakWords = weakRecords.map(r => `${r.get('word')} (${r.get('retention')?.toNumber?.() ?? 0}%)`);
+
+    const cefrDist = words.reduce((acc, w) => { acc[w.cefr] = (acc[w.cefr] || 0) + 1; return acc; }, {});
+
+    const context = `You are an AI German language coach built into Wortgraph, a vocabulary learning app.
+You have access to the learner's Neo4j graph database. Here is their current data:
+
+Total words in deck: ${words.length}
+CEFR distribution: ${JSON.stringify(cefrDist)}
+Recent words: ${words.slice(0, 20).map(w => `${w.article} ${w.word} (${w.cefr}, ${w.retention}% retention)`).join(', ')}
+Weak words needing review: ${weakWords.length > 0 ? weakWords.join(', ') : 'none'}
+
+Answer the learner's question concisely. If they ask about specific words, use their actual graph data above.
+If they ask for suggestions, base them on gaps in their CEFR distribution.
+Keep responses under 150 words. Be encouraging and specific.`;
+
+    const messages = [
+      { role: 'system', content: context },
+      ...history.slice(-6),
+      { role: 'user', content: message }
+    ];
+
+    const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${groqKey}` },
+      body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages, temperature: 0.4 })
+    });
+    if (!groqRes.ok) throw new Error(`Groq ${groqRes.status}: ${await groqRes.text()}`);
+    const groqData = await groqRes.json();
+    res.json({ reply: groqData.choices[0].message.content });
+  } catch (e) {
+    console.error('Chat error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── Start ───────────────────────────────────────────────────────────────────
 
 const PORT = process.env.PORT || 3001;

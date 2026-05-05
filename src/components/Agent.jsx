@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
@@ -34,6 +34,36 @@ export function Agent() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [messages, setMessages] = useState([
+    { role: 'assistant', content: 'Hi! Ask me anything about your vocabulary — which words to review, what to focus on, or how your progress looks.' }
+  ]);
+  const [input, setInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const chatEndRef = useRef(null);
+
+  const sendMessage = async () => {
+    if (!input.trim() || chatLoading) return;
+    const userMsg = { role: 'user', content: input.trim() };
+    const history = messages.filter(m => m.role !== 'assistant' || messages.indexOf(m) > 0);
+    setMessages(prev => [...prev, userMsg]);
+    setInput('');
+    setChatLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/agent/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: userMsg.content, history })
+      });
+      if (!res.ok) throw new Error(`Server error ${res.status}`);
+      const { reply } = await res.json();
+      setMessages(prev => [...prev, { role: 'assistant', content: reply }]);
+    } catch (e) {
+      setMessages(prev => [...prev, { role: 'assistant', content: `Sorry, something went wrong: ${e.message}` }]);
+    } finally {
+      setChatLoading(false);
+      setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+    }
+  };
 
   const fetchSuggestion = async () => {
     if (!API_URL) { setError('API not configured'); return; }
@@ -121,6 +151,51 @@ export function Agent() {
           </div>
         </div>
       )}
+
+      {/* Chat */}
+      <div className="panel">
+        <div className="panel-h"><span className="t">Ask your coach</span><span className="s">Powered by Groq + Neo4j</span></div>
+        <div className="panel-b" style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+          <div style={{ maxHeight: 320, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: 12 }}>
+            {messages.map((m, i) => (
+              <div key={i} style={{
+                display: 'flex',
+                justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start'
+              }}>
+                <div style={{
+                  maxWidth: '80%', padding: '10px 14px', borderRadius: m.role === 'user' ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
+                  background: m.role === 'user' ? 'var(--violet)' : 'var(--bg-3)',
+                  color: m.role === 'user' ? '#fff' : 'var(--ink)',
+                  fontSize: 13, lineHeight: 1.5
+                }}>
+                  {m.content}
+                </div>
+              </div>
+            ))}
+            {chatLoading && (
+              <div style={{ display: 'flex' }}>
+                <div style={{ padding: '10px 14px', borderRadius: '12px 12px 12px 2px', background: 'var(--bg-3)', fontSize: 13, color: 'var(--ink-3)' }}>
+                  Thinking…
+                </div>
+              </div>
+            )}
+            <div ref={chatEndRef} />
+          </div>
+          <div style={{ display: 'flex', gap: 8, borderTop: 'var(--hairline)', paddingTop: 12 }}>
+            <input
+              style={{ flex: 1, border: 'var(--hairline-strong)', borderRadius: 8, padding: '8px 12px', fontSize: 13, outline: 'none', background: 'var(--bg)' }}
+              placeholder="What should I study next? Which words are weakest?"
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && sendMessage()}
+              disabled={chatLoading}
+            />
+            <button className="btn btn-primary btn-sm" onClick={sendMessage} disabled={!input.trim() || chatLoading}>
+              Send
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* How it works */}
       <div className="panel" style={{ background: 'var(--bg-2)' }}>
