@@ -90,7 +90,10 @@ export function Learn() {
     if (!API_URL) return;
     fetch(`${API_URL}/api/sources`)
       .then(r => r.json())
-      .then(setSources)
+      .then(data => {
+        setSources(data);
+        if (data.length > 0) setSelectedSource(data[0].id);
+      })
       .catch(() => {});
   }, []);
 
