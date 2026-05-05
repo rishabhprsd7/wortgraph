@@ -69,15 +69,29 @@ async function saveWordsToDeck(words, source) {
   return res.json();
 }
 
+const LS = {
+  get: (k, fallback) => { try { const v = sessionStorage.getItem(k); return v ? JSON.parse(v) : fallback; } catch { return fallback; } },
+  set: (k, v) => { try { sessionStorage.setItem(k, JSON.stringify(v)); } catch {} }
+};
+
 export function Extract() {
-  const [text, setText] = useState("");
-  const [source, setSource] = useState("Article");
-  const [extracted, setExtracted] = useState([]);
-  const [added, setAdded] = useState(new Set());
+  const [text, setText] = useState(() => LS.get('ex_text', ""));
+  const [source, setSource] = useState(() => LS.get('ex_source', "Article"));
+  const [extracted, setExtracted] = useState(() => LS.get('ex_words', []));
+  const [added, setAdded] = useState(() => new Set(LS.get('ex_added', [])));
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState(null);
+
+  const saveText = (v) => { setText(v); LS.set('ex_text', v); };
+  const saveSource = (v) => { setSource(v); LS.set('ex_source', v); };
+  const saveExtracted = (v) => { setExtracted(v); LS.set('ex_words', v); };
+  const saveAdded = (fn) => setAdded(prev => {
+    const next = fn(prev);
+    LS.set('ex_added', [...next]);
+    return next;
+  });
 
   const hasApiKey = !!GROQ_KEY;
   const sources = ["Article", "Interview", "Podcast", "YouTube"];
@@ -85,8 +99,8 @@ export function Extract() {
   const onExtract = async () => {
     if (!text.trim()) return;
     setLoading(true);
-    setExtracted([]);
-    setAdded(new Set());
+    saveExtracted([]);
+    saveAdded(() => new Set());
     setSaved(false);
     setError(null);
 
@@ -94,18 +108,18 @@ export function Extract() {
       const words = hasApiKey
         ? await extractWithGroq(text)
         : fallbackExtract(text);
-      setExtracted(words);
+      saveExtracted(words);
     } catch (e) {
       console.error("Groq error:", e);
       setError(`Error: ${e.message} — showing demo words instead.`);
-      setExtracted(fallbackExtract(text));
+      saveExtracted(fallbackExtract(text));
     } finally {
       setLoading(false);
     }
   };
 
   const toggleAdd = (w) => {
-    setAdded(prev => {
+    saveAdded(prev => {
       const next = new Set(prev);
       if (next.has(w.word)) next.delete(w.word);
       else next.add(w.word);
@@ -113,7 +127,7 @@ export function Extract() {
     });
   };
 
-  const addAll = () => setAdded(new Set(extracted.map(w => w.word)));
+  const addAll = () => saveAdded(() => new Set(extracted.map(w => w.word)));
 
   const saveSelected = async () => {
     const selectedWords = extracted.filter(w => added.has(w.word));
@@ -143,21 +157,21 @@ export function Extract() {
           className="dz-textarea"
           placeholder="Die Inflation in der Eurozone ist im April erneut leicht gestiegen…"
           value={text}
-          onChange={e => setText(e.target.value)}
+          onChange={e => saveText(e.target.value)}
         />
         <div className="source-chips">
           {sources.map(s => (
             <button
               key={s}
               className={`chip${source === s ? " active" : ""}`}
-              onClick={() => setSource(s)}
+              onClick={() => saveSource(s)}
             >
               {s}
             </button>
           ))}
         </div>
         <div style={{ display: "flex", justifyContent: "center", gap: 10, marginTop: 22 }}>
-          <button className="btn btn-ghost btn-sm" onClick={() => setText(sampleText)}>
+          <button className="btn btn-ghost btn-sm" onClick={() => saveText(sampleText)}>
             <IconPaste />
             Use sample text
           </button>
