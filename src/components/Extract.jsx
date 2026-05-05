@@ -58,12 +58,15 @@ function fallbackExtract(text) {
 }
 
 async function saveWordsToDeck(words, source) {
-  if (!API_URL) return;
-  await fetch(`${API_URL}/api/words`, {
+  console.log('[Wortgraph] API_URL:', API_URL, '| saving', words.length, 'words');
+  if (!API_URL) throw new Error('VITE_API_URL is not set in .env');
+  const res = await fetch(`${API_URL}/api/words`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ words, source, userId: 'default' })
   });
+  if (!res.ok) throw new Error(`Server error ${res.status}: ${await res.text()}`);
+  return res.json();
 }
 
 export function Extract() {
