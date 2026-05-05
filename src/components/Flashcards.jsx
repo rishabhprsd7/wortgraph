@@ -144,37 +144,37 @@ export function Flashcards({ words: propWords }) {
           </div>
 
           {/* Back */}
-          <div className="face face-back" style={{ justifyContent: 'flex-start', paddingTop: 28 }}>
-            <span className="face-corner">BACK</span>
+          <div className="face face-back" style={{ justifyContent: 'flex-start', paddingTop: 24 }}>
+            {/* Sound button top-left (appears top-right after Y-flip) */}
             <button
               onClick={e => { e.stopPropagation(); speak(word); }}
-              style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,0.12)', border: 'none', borderRadius: 8, padding: '6px 8px', cursor: 'pointer', color: 'rgba(255,255,255,0.7)', display: 'flex', alignItems: 'center' }}
+              style={{ position: 'absolute', top: 14, left: 16, background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, padding: '6px 10px', cursor: 'pointer', color: 'rgba(255,255,255,0.6)', display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}
               title="Listen"
-            ><IconSound /></button>
+            ><IconSound /><span>Listen</span></button>
 
-            {/* Word label */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-              <span style={{ color: '#9d96e8', fontSize: 13, fontWeight: 500 }}>{article}</span>
-              <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>{word}</span>
-              {cefr && <span style={{ fontSize: 11, fontWeight: 700, padding: '1px 7px', borderRadius: 10, background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)' }}>{cefr}</span>}
+            {/* Word — large and prominent */}
+            <div style={{ marginBottom: 4, marginTop: 8 }}>
+              <span style={{ color: '#9d96e8', fontSize: 18, fontWeight: 600, marginRight: 8 }}>{article}</span>
+              <span style={{ color: 'rgba(255,255,255,0.9)', fontSize: 20, fontWeight: 700 }}>{word}</span>
+              {cefr && <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 10, background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.45)', marginLeft: 10 }}>{cefr}</span>}
             </div>
 
             {/* Translation */}
-            <div style={{ fontSize: 28, fontWeight: 700, color: '#fff', marginBottom: 20, lineHeight: 1.2 }}>
+            <div style={{ fontSize: 32, fontWeight: 700, color: '#fff', marginBottom: 18, lineHeight: 1.2 }}>
               {translation || '—'}
             </div>
 
             {/* Divider */}
-            {example && <div style={{ width: '100%', height: '0.5px', background: 'rgba(255,255,255,0.12)', marginBottom: 16 }} />}
+            {example && <div style={{ width: '100%', height: '0.5px', background: 'rgba(255,255,255,0.12)', marginBottom: 14 }} />}
 
-            {/* Example */}
+            {/* Example + English */}
             {example && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                 <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 13, fontStyle: 'italic', margin: 0, lineHeight: 1.6 }}>
                   „{example}"
                 </p>
                 {exampleTranslation && (
-                  <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, margin: 0, lineHeight: 1.5 }}>
+                  <p style={{ color: 'rgba(255,255,255,0.38)', fontSize: 12, margin: 0, lineHeight: 1.5 }}>
                     {exampleTranslation}
                   </p>
                 )}
