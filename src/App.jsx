@@ -6,6 +6,7 @@ import { Landing } from './components/Landing';
 import { Flashcards } from './components/Flashcards';
 import { Extract } from './components/Extract';
 import { Dashboard } from './components/Dashboard';
+import { Agent } from './components/Agent';
 import { IconGraph } from './components/Icons';
 
 function ScreenHeader({ title, sub, right }) {
@@ -84,6 +85,15 @@ export default function App() {
                     <div>Interactive graph view — coming next iteration</div>
                   </div>
                 </div>
+              </>
+            )}
+            {route === "agent" && (
+              <>
+                <ScreenHeader
+                  title="AI learning coach"
+                  sub="Powered by Neo4j · analyses your graph to suggest what to study next"
+                />
+                <Agent />
               </>
             )}
           </main>

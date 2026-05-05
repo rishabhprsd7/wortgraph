@@ -5,7 +5,8 @@ export function Sidebar({ route, setRoute, counts }) {
     { id: "learn", label: "Learn", icon: <IconLearn />, count: counts.due },
     { id: "explore", label: "Explore", icon: <IconExplore /> },
     { id: "progress", label: "Progress", icon: <IconProgress /> },
-    { id: "graph", label: "Graph", icon: <IconGraph /> }
+    { id: "graph", label: "Graph", icon: <IconGraph /> },
+    { id: "agent", label: "AI Coach", icon: <span style={{ fontSize: 16 }}>✦</span> }
   ];
   return (
     <aside className="sidebar">
