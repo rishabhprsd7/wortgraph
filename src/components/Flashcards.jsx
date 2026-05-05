@@ -1,8 +1,17 @@
 import { useState, useEffect } from 'react';
 import { flashcards as staticCards } from '../data/vocab';
-import { IconX, IconCheck } from './Icons';
+import { IconX, IconCheck, IconSound, IconTrophy } from './Icons';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
+
+function speak(word) {
+  if (!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(word);
+  u.lang = 'de-DE';
+  u.rate = 0.85;
+  window.speechSynthesis.speak(u);
+}
 
 async function postReview(word, correct) {
   if (!API_URL) return;
@@ -32,14 +41,12 @@ export function Flashcards({ words: propWords }) {
   }, [propWords]);
 
   const card = cards[idx];
-  const progress = cards.length ? (idx / cards.length) * 100 : 0;
-  const usingRealDeck = !!API_URL && cards !== staticCards;
+  const progress = cards.length ? ((idx) / cards.length) * 100 : 0;
 
   const respond = (kind) => {
     const correct = kind === 'good';
-    if (card?.word || card?.lemma) {
-      postReview(card.word ?? card.lemma, correct);
-    }
+    const word = card?.word ?? card?.lemma;
+    if (word) postReview(word, correct);
     setStats(s => ({ ...s, [kind]: s[kind] + 1 }));
     setFlipped(false);
     setTimeout(() => {
@@ -48,7 +55,10 @@ export function Flashcards({ words: propWords }) {
     }, 240);
   };
 
-  const restart = () => { setIdx(0); setFlipped(false); setStats({ hard: 0, again: 0, good: 0 }); setDone(false); };
+  const restart = () => {
+    setIdx(0); setFlipped(false);
+    setStats({ hard: 0, again: 0, good: 0 }); setDone(false);
+  };
 
   useEffect(() => {
     const onKey = (e) => {
@@ -64,19 +74,35 @@ export function Flashcards({ words: propWords }) {
 
   if (loading) return <div style={{ textAlign: 'center', padding: 60, color: 'var(--ink-3)' }}>Loading your deck…</div>;
 
-  if (done) return (
-    <div className="flash-stage" style={{ alignItems: 'center', gap: 16 }}>
-      <div style={{ fontSize: 32 }}>✓</div>
-      <h2 style={{ margin: 0 }}>Session complete</h2>
-      <p style={{ color: 'var(--ink-3)', fontSize: 14, margin: 0 }}>{cards.length} cards reviewed</p>
-      <div style={{ display: 'flex', gap: 28, fontSize: 13, color: 'var(--ink-3)' }}>
-        <span>Hard: <b style={{ color: 'var(--red)' }}>{stats.hard}</b></span>
-        <span>Again: <b>{stats.again}</b></span>
-        <span>Got it: <b style={{ color: 'var(--green)' }}>{stats.good}</b></span>
+  if (done) {
+    const total = stats.hard + stats.again + stats.good;
+    const pct = total > 0 ? Math.round((stats.good / total) * 100) : 0;
+    return (
+      <div style={{ maxWidth: 480, margin: '0 auto', textAlign: 'center', padding: '40px 0' }}>
+        <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--violet-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', color: 'var(--violet)' }}>
+          <IconTrophy />
+        </div>
+        <h2 style={{ margin: '0 0 6px', fontSize: 22 }}>Session complete</h2>
+        <p style={{ color: 'var(--ink-3)', fontSize: 14, margin: '0 0 28px' }}>{total} cards reviewed</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 28 }}>
+          {[
+            { label: 'Got it', val: stats.good, color: 'var(--green)', bg: 'var(--green-soft)' },
+            { label: 'Again', val: stats.again, color: 'var(--ink-2)', bg: 'var(--bg-3)' },
+            { label: 'Hard', val: stats.hard, color: 'var(--red)', bg: 'var(--red-soft)' },
+          ].map(s => (
+            <div key={s.label} style={{ padding: '16px 12px', borderRadius: 10, background: s.bg }}>
+              <div style={{ fontSize: 24, fontWeight: 700, color: s.color }}>{s.val}</div>
+              <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ fontSize: 13, color: 'var(--ink-3)', marginBottom: 20 }}>
+          {pct}% correct · {pct >= 80 ? 'Great session! 🎯' : pct >= 50 ? 'Keep practising!' : 'Review these words again soon.'}
+        </div>
+        <button className="btn btn-primary btn-sm" onClick={restart}>Review again</button>
       </div>
-      <button className="btn btn-primary btn-sm" onClick={restart}>Review again</button>
-    </div>
-  );
+    );
+  }
 
   if (!card) return null;
 
@@ -84,24 +110,30 @@ export function Flashcards({ words: propWords }) {
   const article = card.article ?? '';
   const cefr = card.cefr ?? '';
   const translation = card.translation ?? card.translationEn ?? '';
-  const topic = card.topic ?? '';
   const example = card.example ?? '';
-  const exampleEn = card.exampleEn ?? '';
+  const topic = card.topic ?? '';
 
   return (
     <div className="flash-stage">
       <div className="flash-progress">
         <span>{idx + 1} / {cards.length}</span>
-        <div className="flash-bar">
-          <div className="flash-bar-fill" style={{ width: `${progress}%` }}></div>
-        </div>
-        <span style={{ fontSize: 11, color: 'var(--ink-4)' }}>{usingRealDeck ? 'Your deck' : 'Demo deck'}</span>
+        <div className="flash-bar"><div className="flash-bar-fill" style={{ width: `${progress}%` }} /></div>
+        <span style={{ fontSize: 11, color: 'var(--ink-4)' }}>{API_URL ? 'Your deck' : 'Demo deck'}</span>
       </div>
 
       <div className="card-frame">
         <div className={`card${flipped ? ' flipped' : ''}`} onClick={() => setFlipped(f => !f)}>
+
+          {/* Front */}
           <div className="face face-front">
             <span className="face-corner">FRONT</span>
+            <button
+              onClick={e => { e.stopPropagation(); speak(word); }}
+              style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,0.12)', border: 'none', borderRadius: 8, padding: '6px 8px', cursor: 'pointer', color: 'rgba(255,255,255,0.7)', display: 'flex', alignItems: 'center' }}
+              title="Listen"
+            >
+              <IconSound />
+            </button>
             <div className="card-meta"><span className="article">{article}</span></div>
             <h2 className="card-word">{word}</h2>
             <div className="card-tags">
@@ -109,23 +141,32 @@ export function Flashcards({ words: propWords }) {
               {topic && <span className="tag">{topic}</span>}
             </div>
           </div>
+
+          {/* Back */}
           <div className="face face-back">
             <span className="face-corner">BACK</span>
+            <button
+              onClick={e => { e.stopPropagation(); speak(word); }}
+              style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,0.12)', border: 'none', borderRadius: 8, padding: '6px 8px', cursor: 'pointer', color: 'rgba(255,255,255,0.7)', display: 'flex', alignItems: 'center' }}
+              title="Listen"
+            >
+              <IconSound />
+            </button>
             <div className="card-meta">
               <span className="article" style={{ color: '#9d96e8' }}>{article}</span>
               <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: 13 }}>{word}</span>
             </div>
-            {translation
-              ? <p className="translation">{translation}</p>
-              : <p className="translation" style={{ opacity: 0.5 }}>Did you know this word?</p>
-            }
-            {example && <p className="example">"{example}"</p>}
-            {exampleEn && <p className="example" style={{ marginTop: 6, fontStyle: 'normal', fontSize: 12 }}>{exampleEn}</p>}
+            <p className="translation">{translation || 'Did you know this word?'}</p>
+            {example && (
+              <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, fontStyle: 'italic', margin: '8px 0 0', lineHeight: 1.5 }}>
+                „{example}"
+              </p>
+            )}
           </div>
         </div>
       </div>
 
-      <div className="flip-hint">Click card or press space to flip</div>
+      <div className="flip-hint">Click card or press space to flip · 🔊 tap speaker to hear</div>
 
       <div className="response-row">
         <button className="resp-btn hard" onClick={() => respond('hard')}>
@@ -139,7 +180,7 @@ export function Flashcards({ words: propWords }) {
         </button>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'center', gap: 28, marginTop: 28, fontSize: 12, color: 'var(--ink-3)' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', gap: 28, marginTop: 16, fontSize: 12, color: 'var(--ink-3)' }}>
         <span>Hard: <b style={{ color: 'var(--red)' }}>{stats.hard}</b></span>
         <span>Again: <b>{stats.again}</b></span>
         <span>Got it: <b style={{ color: 'var(--green)' }}>{stats.good}</b></span>

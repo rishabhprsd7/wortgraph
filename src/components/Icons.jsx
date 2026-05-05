@@ -15,8 +15,11 @@ export function IconGraph() {
 export function IconDeck() {
   return <svg width="14" height="14" viewBox="0 0 16 16" {...sw}><rect x="3" y="3" width="9" height="11" rx="1"/><path d="M5 6 H10 M5 8 H10 M5 10 H8"/></svg>;
 }
-export function IconHelp() {
-  return <svg width="14" height="14" viewBox="0 0 16 16" {...sw}><circle cx="8" cy="8" r="6"/><path d="M6.5 6 C6.5 5 7 4.5 8 4.5 C9 4.5 9.5 5 9.5 6 C9.5 7 8 7 8 8.5"/><circle cx="8" cy="11" r="0.4" fill="currentColor"/></svg>;
+export function IconSound() {
+  return <svg width="15" height="15" viewBox="0 0 16 16" {...sw}><path d="M3 6 H5 L9 3 V13 L5 10 H3 Z"/><path d="M11 5.5 C12 6.5 12 9.5 11 10.5"/><path d="M12.5 4 C14.5 6 14.5 10 12.5 12"/></svg>;
+}
+export function IconTrophy() {
+  return <svg width="20" height="20" viewBox="0 0 16 16" {...sw}><path d="M5 2 H11 V8 C11 10 9.5 11.5 8 11.5 C6.5 11.5 5 10 5 8 Z"/><path d="M5 4 H3 C3 4 3 7 5 7"/><path d="M11 4 H13 C13 4 13 7 11 7"/><path d="M8 11.5 V13.5 M6 13.5 H10"/></svg>;
 }
 export function IconCheck() {
   return <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M2 6 L5 9 L10 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>;
