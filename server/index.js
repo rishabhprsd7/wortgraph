@@ -74,14 +74,14 @@ app.post('/api/words', async (req, res) => {
     for (const w of words) {
       await runQuery(`
         MERGE (word:Word {lemma: $lemma})
-        ON CREATE SET word.article = $article, word.cefr = $cefr, word.addedAt = timestamp()
-        ON MATCH SET word.cefr = $cefr
+        ON CREATE SET word.article = $article, word.cefr = $cefr, word.translation = $translation, word.addedAt = timestamp()
+        ON MATCH SET word.cefr = $cefr, word.translation = $translation
         WITH word
         MATCH (u:User {id: $userId}), (s:Source {id: $sourceId})
         MERGE (u)-[r:ADDED]->(word)
         ON CREATE SET r.addedAt = timestamp(), r.reviewCount = 0, r.retention = 0
         MERGE (word)-[:EXTRACTED_FROM]->(s)
-      `, { lemma: w.word, article: w.article || '', cefr: w.cefr || 'B1', userId, sourceId });
+      `, { lemma: w.word, article: w.article || '', cefr: w.cefr || 'B1', translation: w.translation || '', userId, sourceId });
     }
 
     res.json({ saved: words.length });
@@ -99,6 +99,7 @@ app.get('/api/words', async (req, res) => {
     const records = await runQuery(`
       MATCH (u:User {id: $userId})-[r:ADDED]->(w:Word)
       RETURN w.lemma AS word, w.article AS article, w.cefr AS cefr,
+             coalesce(w.translation, '') AS translation,
              r.reviewCount AS reviewCount, r.retention AS retention,
              r.addedAt AS addedAt
       ORDER BY r.addedAt DESC
@@ -108,6 +109,7 @@ app.get('/api/words', async (req, res) => {
       word: r.get('word'),
       article: r.get('article'),
       cefr: r.get('cefr'),
+      translation: r.get('translation'),
       reviewCount: r.get('reviewCount')?.toNumber?.() ?? 0,
       retention: r.get('retention')?.toNumber?.() ?? 0,
     }));
