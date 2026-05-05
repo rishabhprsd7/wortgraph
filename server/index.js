@@ -6,7 +6,13 @@ import neo4j from 'neo4j-driver';
 dotenv.config();
 
 const app = express();
-app.use(cors({ origin: process.env.FRONTEND_URL || '*' }));
+const allowedOrigins = (process.env.FRONTEND_URL || '*').split(',').map(s => s.trim());
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(origin)) cb(null, true);
+    else cb(new Error('CORS: ' + origin));
+  }
+}));
 app.use(express.json());
 
 // Neo4j driver (singleton)
