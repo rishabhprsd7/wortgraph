@@ -130,10 +130,18 @@ export function Flashcards({ words: propWords }) {
             <span className="face-corner">FRONT</span>
             <button
               onClick={e => { e.stopPropagation(); speak(word); }}
-              style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,0.12)', border: 'none', borderRadius: 8, padding: '6px 8px', cursor: 'pointer', color: 'rgba(255,255,255,0.7)', display: 'flex', alignItems: 'center' }}
+              style={{
+                position: 'absolute', top: 16, right: 16,
+                background: 'rgba(255,255,255,0.08)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                borderRadius: 999, padding: '6px 12px',
+                cursor: 'pointer', color: 'rgba(255,255,255,0.75)',
+                display: 'flex', alignItems: 'center', gap: 6,
+                fontSize: 12, fontWeight: 500, letterSpacing: 0.2,
+              }}
               title="Listen"
             >
-              <IconSound />
+              <IconSound /><span>Listen</span>
             </button>
             <div className="card-meta"><span className="article">{article}</span></div>
             <h2 className="card-word">{word}</h2>
