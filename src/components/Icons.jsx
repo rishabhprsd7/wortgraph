@@ -15,6 +15,9 @@ export function IconGraph() {
 export function IconDeck() {
   return <svg width="14" height="14" viewBox="0 0 16 16" {...sw}><rect x="3" y="3" width="9" height="11" rx="1"/><path d="M5 6 H10 M5 8 H10 M5 10 H8"/></svg>;
 }
+export function IconHelp() {
+  return <svg width="14" height="14" viewBox="0 0 16 16" {...sw}><circle cx="8" cy="8" r="6"/><path d="M6.5 6 C6.5 5 7 4.5 8 4.5 C9 4.5 9.5 5 9.5 6 C9.5 7 8 7 8 8.5"/><circle cx="8" cy="11" r="0.4" fill="currentColor"/></svg>;
+}
 export function IconSound() {
   return <svg width="15" height="15" viewBox="0 0 16 16" {...sw}><path d="M3 6 H5 L9 3 V13 L5 10 H3 Z"/><path d="M11 5.5 C12 6.5 12 9.5 11 10.5"/><path d="M12.5 4 C14.5 6 14.5 10 12.5 12"/></svg>;
 }
