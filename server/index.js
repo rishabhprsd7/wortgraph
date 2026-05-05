@@ -51,23 +51,21 @@ app.get('/health', (_, res) => res.json({ ok: true }));
 // Save extracted words to the graph
 // POST /api/words  { words: [{article, word, cefr}], source: "Article", sourceText: "..." }
 app.post('/api/words', async (req, res) => {
-  const { words, source = 'Unknown', userId = 'default' } = req.body;
+  const { words, source = 'Unknown', snippet = '', userId = 'default' } = req.body;
   if (!Array.isArray(words) || words.length === 0) {
     return res.status(400).json({ error: 'words array required' });
   }
 
   try {
-    // Ensure user exists
     await runQuery(
       'MERGE (u:User {id: $userId}) ON CREATE SET u.createdAt = timestamp()',
       { userId }
     );
 
-    // Ensure source node
     const sourceId = `${source}-${Date.now()}`;
     await runQuery(
-      'MERGE (s:Source {id: $sourceId}) ON CREATE SET s.type = $type, s.addedAt = timestamp()',
-      { sourceId, type: source }
+      'MERGE (s:Source {id: $sourceId}) ON CREATE SET s.type = $type, s.snippet = $snippet, s.addedAt = timestamp()',
+      { sourceId, type: source, snippet }
     );
 
     // Upsert each word and link to user + source
@@ -91,19 +89,25 @@ app.post('/api/words', async (req, res) => {
   }
 });
 
-// Get user's word deck
-// GET /api/words?userId=default
+// Get user's word deck, optionally filtered by source
+// GET /api/words?userId=default&sourceId=Article-1234
 app.get('/api/words', async (req, res) => {
-  const { userId = 'default' } = req.query;
+  const { userId = 'default', sourceId } = req.query;
   try {
-    const records = await runQuery(`
-      MATCH (u:User {id: $userId})-[r:ADDED]->(w:Word)
-      RETURN w.lemma AS word, w.article AS article, w.cefr AS cefr,
-             coalesce(w.translation, '') AS translation,
-             r.reviewCount AS reviewCount, r.retention AS retention,
-             r.addedAt AS addedAt
-      ORDER BY r.addedAt DESC
-    `, { userId });
+    const cypher = sourceId
+      ? `MATCH (u:User {id: $userId})-[r:ADDED]->(w:Word)-[:EXTRACTED_FROM]->(s:Source {id: $sourceId})
+         RETURN w.lemma AS word, w.article AS article, w.cefr AS cefr,
+                coalesce(w.translation, '') AS translation,
+                r.reviewCount AS reviewCount, r.retention AS retention,
+                r.addedAt AS addedAt
+         ORDER BY r.addedAt DESC`
+      : `MATCH (u:User {id: $userId})-[r:ADDED]->(w:Word)
+         RETURN w.lemma AS word, w.article AS article, w.cefr AS cefr,
+                coalesce(w.translation, '') AS translation,
+                r.reviewCount AS reviewCount, r.retention AS retention,
+                r.addedAt AS addedAt
+         ORDER BY r.addedAt DESC`;
+    const records = await runQuery(cypher, { userId, sourceId });
 
     const words = records.map(r => ({
       word: r.get('word'),
@@ -114,6 +118,29 @@ app.get('/api/words', async (req, res) => {
       retention: r.get('retention')?.toNumber?.() ?? 0,
     }));
     res.json(words);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Get sources (extracted texts) with word counts
+// GET /api/sources?userId=default
+app.get('/api/sources', async (req, res) => {
+  const { userId = 'default' } = req.query;
+  try {
+    const records = await runQuery(`
+      MATCH (u:User {id: $userId})-[:ADDED]->(w:Word)-[:EXTRACTED_FROM]->(s:Source)
+      RETURN s.id AS id, s.type AS type, s.snippet AS snippet, s.addedAt AS addedAt,
+             count(DISTINCT w) AS wordCount
+      ORDER BY s.addedAt DESC
+    `, { userId });
+    res.json(records.map(r => ({
+      id: r.get('id'),
+      type: r.get('type'),
+      snippet: r.get('snippet') || '',
+      addedAt: r.get('addedAt')?.toNumber?.() ?? 0,
+      wordCount: r.get('wordCount')?.toNumber?.() ?? 0,
+    })));
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

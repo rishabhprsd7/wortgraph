@@ -13,25 +13,23 @@ async function postReview(word, correct) {
   }).catch(() => {});
 }
 
-export function Flashcards() {
+export function Flashcards({ words: propWords }) {
   const [cards, setCards] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!propWords);
   const [idx, setIdx] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [stats, setStats] = useState({ hard: 0, again: 0, good: 0 });
   const [done, setDone] = useState(false);
 
   useEffect(() => {
+    if (propWords) { setCards(propWords.length > 0 ? propWords : staticCards); setLoading(false); return; }
     if (!API_URL) { setCards(staticCards); setLoading(false); return; }
     fetch(`${API_URL}/api/words`)
       .then(r => r.json())
-      .then(data => {
-        const deck = data.length > 0 ? data : staticCards;
-        setCards(deck);
-      })
+      .then(data => setCards(data.length > 0 ? data : staticCards))
       .catch(() => setCards(staticCards))
       .finally(() => setLoading(false));
-  }, []);
+  }, [propWords]);
 
   const card = cards[idx];
   const progress = cards.length ? (idx / cards.length) * 100 : 0;

@@ -3,7 +3,7 @@ import './styles.css';
 import { Nav } from './components/Nav';
 import { Sidebar } from './components/Sidebar';
 import { Landing } from './components/Landing';
-import { Flashcards } from './components/Flashcards';
+import { Learn } from './components/Learn';
 import { Extract } from './components/Extract';
 import { Dashboard } from './components/Dashboard';
 import { Agent } from './components/Agent';
@@ -37,11 +37,10 @@ export default function App() {
             {route === "learn" && (
               <>
                 <ScreenHeader
-                  title="Today's review"
-                  sub="23 words due · spaced repetition queue"
-                  right={<button className="btn btn-ghost btn-sm">End session</button>}
+                  title="Learn"
+                  sub="Study by source or practice all words with flashcards"
                 />
-                <Flashcards />
+                <Learn />
               </>
             )}
             {route === "explore" && (

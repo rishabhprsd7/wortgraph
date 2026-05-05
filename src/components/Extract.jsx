@@ -57,13 +57,12 @@ function fallbackExtract(text) {
   return [...inText, ...rest.slice(0, 8 - inText.length)];
 }
 
-async function saveWordsToDeck(words, source) {
-  console.log('[Wortgraph] API_URL:', API_URL, '| saving', words.length, 'words');
+async function saveWordsToDeck(words, source, snippet) {
   if (!API_URL) throw new Error('VITE_API_URL is not set in .env');
   const res = await fetch(`${API_URL}/api/words`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ words, source, userId: 'default' })
+    body: JSON.stringify({ words, source, snippet, userId: 'default' })
   });
   if (!res.ok) throw new Error(`Server error ${res.status}: ${await res.text()}`);
   return res.json();
@@ -134,7 +133,7 @@ export function Extract() {
     if (selectedWords.length === 0) return;
     setSaving(true);
     try {
-      await saveWordsToDeck(selectedWords, source);
+      await saveWordsToDeck(selectedWords, source, text.slice(0, 120));
       setSaved(true);
     } catch (e) {
       console.error('Save error:', e);
