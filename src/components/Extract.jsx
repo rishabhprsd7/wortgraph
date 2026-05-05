@@ -8,7 +8,7 @@ const API_URL = import.meta.env.VITE_API_URL || '';
 
 const PROMPT = (text) => {
   const wordCount = text.trim().split(/\s+/).length;
-  const target = Math.max(8, Math.round(wordCount * 0.15));
+  const target = Math.min(20, Math.max(8, Math.round(wordCount * 0.15)));
   return `You are a strict German language teacher selecting vocabulary for a B1+ learner.
 
 Extract exactly ${target} words from this text. Return ONLY a JSON array, no markdown, no explanation.
@@ -39,7 +39,8 @@ async function extractWithGroq(text) {
     body: JSON.stringify({
       model: 'llama-3.3-70b-versatile',
       messages: [{ role: 'user', content: PROMPT(text) }],
-      temperature: 0.1
+      temperature: 0.1,
+      max_tokens: 2048
     })
   });
   if (!res.ok) throw new Error(`Groq error ${res.status}: ${await res.text()}`);
