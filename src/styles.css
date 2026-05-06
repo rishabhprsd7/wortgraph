@@ -639,25 +639,6 @@ a { color: inherit; text-decoration: none; }
   background: var(--violet);
   transition: width 320ms ease;
 }
-.review-banner {
-  text-align: center;
-  font-size: 12px;
-  font-weight: 600;
-  padding: 7px 16px;
-  border-radius: 8px;
-  margin-bottom: 12px;
-  letter-spacing: 0.01em;
-}
-.review-banner.hard {
-  background: var(--red-soft);
-  color: var(--red);
-  border: 1px solid rgba(226, 75, 74, 0.2);
-}
-.review-banner.reinforce {
-  background: #fef8e7;
-  color: #8a6200;
-  border: 1px solid rgba(216, 162, 61, 0.3);
-}
 .card-frame {
   perspective: 1600px;
   height: 280px;

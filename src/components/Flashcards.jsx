@@ -174,20 +174,30 @@ export function Flashcards({ words: propWords }) {
         <span style={{ fontSize: 11, color: 'var(--ink-4)' }}>{API_URL ? 'Your deck' : 'Demo deck'}</span>
       </div>
 
-      {isReview && (
-        <div className={`review-banner${prevResult === 'no' ? ' hard' : ' reinforce'}`}>
-          {prevResult === 'no'
-            ? '⚠ Marked as Don\'t know — try again'
-            : '↻ Reinforcing — seen before'}
-        </div>
-      )}
-
       <div className="card-frame">
         <div className={`card${flipped ? ' flipped' : ''}`} onClick={() => setFlipped(f => !f)}>
 
           {/* Front */}
-          <div className="face face-front" style={{ justifyContent: 'space-between' }}>
-            <span className="face-corner">FRONT</span>
+          <div
+            className="face face-front"
+            style={{
+              justifyContent: 'space-between',
+              ...(isReview && prevResult === 'no' ? {
+                background: 'linear-gradient(180deg, #fff5f5 0%, #fde8e8 100%)',
+                borderColor: '#f0c4c4',
+              } : isReview ? {
+                background: 'linear-gradient(180deg, #fffdf0 0%, #fef6da 100%)',
+                borderColor: '#e5d48a',
+              } : {}),
+            }}
+          >
+            {isReview && prevResult === 'no' ? (
+              <span className="face-corner" style={{ background: 'rgba(226,75,74,0.12)', color: 'var(--red)', padding: '2px 9px', borderRadius: 999, fontWeight: 600 }}>Don't know</span>
+            ) : isReview ? (
+              <span className="face-corner" style={{ background: 'rgba(216,162,61,0.15)', color: '#8a6200', padding: '2px 9px', borderRadius: 999, fontWeight: 600 }}>Review</span>
+            ) : (
+              <span className="face-corner">FRONT</span>
+            )}
             <div>
               <div className="card-meta"><span className="article">{article}</span></div>
               <h2 className="card-word">{word}</h2>
