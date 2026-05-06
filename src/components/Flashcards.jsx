@@ -39,7 +39,7 @@ export function Flashcards({ words: propWords }) {
   const [loading, setLoading] = useState(!propWords);
   const [idx, setIdx] = useState(0);
   const [flipped, setFlipped] = useState(false);
-  const [stats, setStats] = useState({ hard: 0, again: 0, good: 0 });
+  const [stats, setStats] = useState({ know: 0, no: 0 });
   const [done, setDone] = useState(false);
 
   useEffect(() => {
@@ -56,7 +56,7 @@ export function Flashcards({ words: propWords }) {
   const progress = cards.length ? ((idx) / cards.length) * 100 : 0;
 
   const respond = (kind) => {
-    const correct = kind === 'good';
+    const correct = kind === 'know';
     const word = card?.word ?? card?.lemma;
     if (word) postReview(word, correct);
     setStats(s => ({ ...s, [kind]: s[kind] + 1 }));
@@ -69,16 +69,15 @@ export function Flashcards({ words: propWords }) {
 
   const restart = () => {
     setIdx(0); setFlipped(false);
-    setStats({ hard: 0, again: 0, good: 0 }); setDone(false);
+    setStats({ know: 0, no: 0 }); setDone(false);
   };
 
   useEffect(() => {
     const onKey = (e) => {
       if (done) return;
       if (e.code === 'Space') { e.preventDefault(); setFlipped(f => !f); }
-      else if (e.key === '1') respond('hard');
-      else if (e.key === '2') respond('again');
-      else if (e.key === '3') respond('good');
+      else if (e.key === '1') respond('no');
+      else if (e.key === '2') respond('know');
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -87,8 +86,8 @@ export function Flashcards({ words: propWords }) {
   if (loading) return <div style={{ textAlign: 'center', padding: 60, color: 'var(--ink-3)' }}>Loading your deck…</div>;
 
   if (done) {
-    const total = stats.hard + stats.again + stats.good;
-    const pct = total > 0 ? Math.round((stats.good / total) * 100) : 0;
+    const total = stats.know + stats.no;
+    const pct = total > 0 ? Math.round((stats.know / total) * 100) : 0;
     return (
       <div style={{ maxWidth: 480, margin: '0 auto', textAlign: 'center', padding: '40px 0' }}>
         <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--violet-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', color: 'var(--violet)' }}>
@@ -96,11 +95,10 @@ export function Flashcards({ words: propWords }) {
         </div>
         <h2 style={{ margin: '0 0 6px', fontSize: 22 }}>Session complete</h2>
         <p style={{ color: 'var(--ink-3)', fontSize: 14, margin: '0 0 28px' }}>{total} cards reviewed</p>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 28 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 12, marginBottom: 28 }}>
           {[
-            { label: 'Got it', val: stats.good, color: 'var(--green)', bg: 'var(--green-soft)' },
-            { label: 'Again', val: stats.again, color: 'var(--ink-2)', bg: 'var(--bg-3)' },
-            { label: 'Hard', val: stats.hard, color: 'var(--red)', bg: 'var(--red-soft)' },
+            { label: 'Know it', val: stats.know, color: 'var(--green)', bg: 'var(--green-soft)' },
+            { label: "Don't know", val: stats.no, color: 'var(--red)', bg: 'var(--red-soft)' },
           ].map(s => (
             <div key={s.label} style={{ padding: '16px 12px', borderRadius: 10, background: s.bg }}>
               <div style={{ fontSize: 24, fontWeight: 700, color: s.color }}>{s.val}</div>
@@ -109,7 +107,7 @@ export function Flashcards({ words: propWords }) {
           ))}
         </div>
         <div style={{ fontSize: 13, color: 'var(--ink-3)', marginBottom: 20 }}>
-          {pct}% correct · {pct >= 80 ? 'Great session! 🎯' : pct >= 50 ? 'Keep practising!' : 'Review these words again soon.'}
+          {pct}% known · {pct >= 80 ? 'Excellent session!' : pct >= 50 ? 'Keep practising!' : 'Review these words again soon.'}
         </div>
         <button className="btn btn-primary btn-sm" onClick={restart}>Review again</button>
       </div>
@@ -151,7 +149,7 @@ export function Flashcards({ words: propWords }) {
             <button
               onClick={e => { e.stopPropagation(); speak(word); }}
               style={{
-                alignSelf: 'flex-end',
+                alignSelf: 'flex-start',
                 background: 'var(--bg-3)',
                 border: '1px solid var(--line)',
                 borderRadius: 999, padding: '6px 14px',
@@ -198,21 +196,17 @@ export function Flashcards({ words: propWords }) {
       <div className="flip-hint">Click card or press space to flip · 🔊 tap speaker to hear</div>
 
       <div className="response-row">
-        <button className="resp-btn hard" onClick={() => respond('hard')}>
-          <span className="glyph"><IconX /></span><span>Hard</span><span className="kb">1</span>
+        <button className="resp-btn hard" onClick={() => respond('no')}>
+          <span className="glyph"><IconX /></span><span>Don't know</span><span className="kb">1</span>
         </button>
-        <button className="resp-btn again" onClick={() => respond('again')}>
-          <span>Again</span><span className="kb">2</span>
-        </button>
-        <button className="resp-btn good" onClick={() => respond('good')}>
-          <span className="glyph"><IconCheck /></span><span>Got it</span><span className="kb">3</span>
+        <button className="resp-btn good" onClick={() => respond('know')}>
+          <span className="glyph"><IconCheck /></span><span>Know it</span><span className="kb">2</span>
         </button>
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'center', gap: 28, marginTop: 16, fontSize: 12, color: 'var(--ink-3)' }}>
-        <span>Hard: <b style={{ color: 'var(--red)' }}>{stats.hard}</b></span>
-        <span>Again: <b>{stats.again}</b></span>
-        <span>Got it: <b style={{ color: 'var(--green)' }}>{stats.good}</b></span>
+        <span>Don't know: <b style={{ color: 'var(--red)' }}>{stats.no}</b></span>
+        <span>Know it: <b style={{ color: 'var(--green)' }}>{stats.know}</b></span>
       </div>
     </div>
   );
