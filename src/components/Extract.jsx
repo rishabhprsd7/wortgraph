@@ -82,6 +82,7 @@ export function Extract() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [toast, setToast] = useState(null);
   const [error, setError] = useState(null);
 
   const saveText = (v) => { setText(v); LS.set('ex_text', v); };
@@ -128,6 +129,12 @@ export function Extract() {
   };
 
   const addAll = () => saveAdded(() => new Set(extracted.map(w => w.word)));
+  const deselectAll = () => saveAdded(() => new Set());
+
+  const showToast = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3500);
+  };
 
   const saveSelected = async () => {
     const selectedWords = extracted.filter(w => added.has(w.word));
@@ -136,6 +143,7 @@ export function Extract() {
     try {
       await saveWordsToDeck(selectedWords, source, text.slice(0, 120));
       setSaved(true);
+      showToast(`${selectedWords.length} word${selectedWords.length === 1 ? '' : 's'} added to your flashcard deck`);
     } catch (e) {
       console.error('Save error:', e);
     } finally {
@@ -145,6 +153,11 @@ export function Extract() {
 
   return (
     <div className="extract-wrap">
+      {toast && (
+        <div className="toast-banner">
+          <IconCheck />{toast}
+        </div>
+      )}
       <div className="dropzone">
         <div className="dz-icon"><IconKeyboard /></div>
         <div className="dz-title">Paste German text, article, or transcript</div>
@@ -222,6 +235,9 @@ export function Extract() {
             <div className="er-foot">
               <span className="er-foot-meta">{added.size} of {extracted.length} selected</span>
               <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn btn-ghost btn-sm" onClick={deselectAll} disabled={added.size === 0}>
+                  Deselect all
+                </button>
                 <button className="btn btn-ghost btn-sm" onClick={addAll} disabled={added.size === extracted.length}>
                   Select all
                 </button>

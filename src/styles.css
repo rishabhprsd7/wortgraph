@@ -805,6 +805,30 @@ a { color: inherit; text-decoration: none; }
 .extract-wrap {
   max-width: 920px;
   margin: 0 auto;
+  position: relative;
+}
+.toast-banner {
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1e1b3a;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 11px 20px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.22);
+  z-index: 999;
+  white-space: nowrap;
+  animation: toast-in 200ms ease;
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 .dropzone {
   border: 0.5px dashed var(--violet);
