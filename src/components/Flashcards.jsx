@@ -45,6 +45,8 @@ export function Flashcards({ words: propWords }) {
   const [deck, setDeck] = useState({ queue: [], idx: 0, done: false });
   const [flipped, setFlipped] = useState(false);
   const [stats, setStats] = useState({ know: 0, no: 0 });
+  // Track unique words the user didn't know (for end-of-session summary)
+  const [newWords, setNewWords] = useState(new Set());
 
   useEffect(() => {
     if (propWords) {
@@ -84,6 +86,7 @@ export function Flashcards({ words: propWords }) {
     const word = card?.word ?? card?.lemma;
     if (word) postReview(word, correct);
     setStats(s => ({ ...s, [kind]: s[kind] + 1 }));
+    if (kind === 'no' && word) setNewWords(prev => new Set([...prev, word]));
     setFlipped(false);
 
     setTimeout(() => {
@@ -112,6 +115,7 @@ export function Flashcards({ words: propWords }) {
     setDeck({ queue: buildQueue(cards), idx: 0, done: false });
     setFlipped(false);
     setStats({ know: 0, no: 0 });
+    setNewWords(new Set());
   };
 
   useEffect(() => {
@@ -128,8 +132,11 @@ export function Flashcards({ words: propWords }) {
   if (loading) return <div style={{ textAlign: 'center', padding: 60, color: 'var(--ink-3)' }}>Loading your deck…</div>;
 
   if (done) {
-    const total = stats.know + stats.no;
-    const pct = total > 0 ? Math.round((stats.know / total) * 100) : 0;
+    const alreadyKnew = origTotal - newWords.size;
+    const msg = newWords.size === 0
+      ? 'You already knew everything — great work!'
+      : newWords.size <= 3 ? 'Almost there — keep going!'
+      : 'Keep reviewing to lock these in.';
     return (
       <div style={{ maxWidth: 480, margin: '0 auto', textAlign: 'center', padding: '40px 0' }}>
         <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--violet-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', color: 'var(--violet)' }}>
@@ -137,20 +144,22 @@ export function Flashcards({ words: propWords }) {
         </div>
         <h2 style={{ margin: '0 0 6px', fontSize: 22 }}>Session complete</h2>
         <p style={{ color: 'var(--ink-3)', fontSize: 14, margin: '0 0 28px' }}>{origTotal} cards reviewed</p>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 12, marginBottom: 28 }}>
-          {[
-            { label: 'Know it', val: stats.know, color: 'var(--green)', bg: 'var(--green-soft)' },
-            { label: "Don't know", val: stats.no, color: 'var(--red)', bg: 'var(--red-soft)' },
-          ].map(s => (
-            <div key={s.label} style={{ padding: '16px 12px', borderRadius: 10, background: s.bg }}>
-              <div style={{ fontSize: 24, fontWeight: 700, color: s.color }}>{s.val}</div>
-              <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>{s.label}</div>
-            </div>
-          ))}
+
+        {/* Headline stat */}
+        <div style={{ padding: '24px 20px', borderRadius: 12, background: 'var(--violet-soft)', marginBottom: 16 }}>
+          <div style={{ fontSize: 48, fontWeight: 700, color: 'var(--violet)', lineHeight: 1 }}>{newWords.size}</div>
+          <div style={{ fontSize: 14, color: 'var(--ink-2)', marginTop: 6, fontWeight: 500 }}>new words learned this session</div>
         </div>
-        <div style={{ fontSize: 13, color: 'var(--ink-3)', marginBottom: 20 }}>
-          {pct}% known · {pct >= 80 ? 'Excellent session!' : pct >= 50 ? 'Keep practising!' : 'Review these words again soon.'}
-        </div>
+
+        {alreadyKnew > 0 && (
+          <div style={{ fontSize: 13, color: 'var(--ink-3)', marginBottom: 20 }}>
+            Already knew <b style={{ color: 'var(--green)' }}>{alreadyKnew}</b> · {msg}
+          </div>
+        )}
+        {alreadyKnew === 0 && (
+          <div style={{ fontSize: 13, color: 'var(--ink-3)', marginBottom: 20 }}>{msg}</div>
+        )}
+
         <button className="btn btn-primary btn-sm" onClick={restart}>Review again</button>
       </div>
     );
