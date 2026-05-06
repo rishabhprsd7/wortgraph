@@ -97,8 +97,14 @@ export function Flashcards({ words: propWords }) {
         let newQueue = [...q];
 
         if (kind === 'no') {
-          // Reinsert the card 2-3 positions ahead so it comes back soon
-          const insertAt = Math.min(nextIdx + 2, newQueue.length);
+          // Advance past 2 unseen (non-review) cards before reinserting,
+          // so consecutive don't-knows never block new cards from appearing.
+          let newCardsAhead = 0;
+          let insertAt = nextIdx;
+          while (insertAt < newQueue.length && newCardsAhead < 2) {
+            if (!newQueue[insertAt].isReview) newCardsAhead++;
+            insertAt++;
+          }
           newQueue.splice(insertAt, 0, { card: item.card, isReview: true, prevResult: 'no' });
         } else if (!item.isReview && Math.random() < 0.35) {
           // 35% chance: reinforce a "know" card once more near the end
