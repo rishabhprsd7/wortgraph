@@ -34,16 +34,25 @@ async function postReview(word, correct) {
   }).catch(() => {});
 }
 
+function buildQueue(cards) {
+  return cards.map(c => ({ card: c, isReview: false, prevResult: null }));
+}
+
 export function Flashcards({ words: propWords }) {
   const [cards, setCards] = useState([]);
   const [loading, setLoading] = useState(!propWords);
-  const [idx, setIdx] = useState(0);
+  // deck = { queue: [{card, isReview, prevResult}], idx, done }
+  const [deck, setDeck] = useState({ queue: [], idx: 0, done: false });
   const [flipped, setFlipped] = useState(false);
   const [stats, setStats] = useState({ know: 0, no: 0 });
-  const [done, setDone] = useState(false);
 
   useEffect(() => {
-    if (propWords) { setCards(propWords.length > 0 ? propWords : staticCards); setLoading(false); return; }
+    if (propWords) {
+      const c = propWords.length > 0 ? propWords : staticCards;
+      setCards(c);
+      setLoading(false);
+      return;
+    }
     if (!API_URL) { setCards(staticCards); setLoading(false); return; }
     fetch(`${API_URL}/api/words`)
       .then(r => r.json())
@@ -52,8 +61,23 @@ export function Flashcards({ words: propWords }) {
       .finally(() => setLoading(false));
   }, [propWords]);
 
-  const card = cards[idx];
-  const progress = cards.length ? ((idx) / cards.length) * 100 : 0;
+  useEffect(() => {
+    if (cards.length > 0) {
+      setDeck({ queue: buildQueue(cards), idx: 0, done: false });
+    }
+  }, [cards]);
+
+  const { queue, idx, done } = deck;
+  const currentItem = queue[idx];
+  const card = currentItem?.card;
+  const isReview = currentItem?.isReview ?? false;
+  const prevResult = currentItem?.prevResult ?? null;
+
+  const origTotal = cards.length;
+  // Count original (non-review) cards already answered
+  const origsDone = queue.slice(0, idx).filter(item => !item.isReview).length;
+  const displayNum = isReview ? origsDone : origsDone + 1;
+  const progress = origTotal > 0 ? Math.min((displayNum / origTotal) * 100, 100) : 0;
 
   const respond = (kind) => {
     const correct = kind === 'know';
@@ -61,15 +85,33 @@ export function Flashcards({ words: propWords }) {
     if (word) postReview(word, correct);
     setStats(s => ({ ...s, [kind]: s[kind] + 1 }));
     setFlipped(false);
+
     setTimeout(() => {
-      if (idx + 1 >= cards.length) setDone(true);
-      else setIdx(i => i + 1);
+      setDeck(prev => {
+        const { queue: q, idx: i } = prev;
+        const nextIdx = i + 1;
+        const item = q[i];
+        let newQueue = [...q];
+
+        if (kind === 'no') {
+          // Reinsert the card 2-3 positions ahead so it comes back soon
+          const insertAt = Math.min(nextIdx + 2, newQueue.length);
+          newQueue.splice(insertAt, 0, { card: item.card, isReview: true, prevResult: 'no' });
+        } else if (!item.isReview && Math.random() < 0.35) {
+          // 35% chance: reinforce a "know" card once more near the end
+          newQueue.push({ card: item.card, isReview: true, prevResult: 'know' });
+        }
+
+        const isDone = nextIdx >= newQueue.length;
+        return { queue: newQueue, idx: nextIdx, done: isDone };
+      });
     }, 240);
   };
 
   const restart = () => {
-    setIdx(0); setFlipped(false);
-    setStats({ know: 0, no: 0 }); setDone(false);
+    setDeck({ queue: buildQueue(cards), idx: 0, done: false });
+    setFlipped(false);
+    setStats({ know: 0, no: 0 });
   };
 
   useEffect(() => {
@@ -94,7 +136,7 @@ export function Flashcards({ words: propWords }) {
           <IconTrophy />
         </div>
         <h2 style={{ margin: '0 0 6px', fontSize: 22 }}>Session complete</h2>
-        <p style={{ color: 'var(--ink-3)', fontSize: 14, margin: '0 0 28px' }}>{total} cards reviewed</p>
+        <p style={{ color: 'var(--ink-3)', fontSize: 14, margin: '0 0 28px' }}>{origTotal} cards reviewed</p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 12, marginBottom: 28 }}>
           {[
             { label: 'Know it', val: stats.know, color: 'var(--green)', bg: 'var(--green-soft)' },
@@ -127,10 +169,18 @@ export function Flashcards({ words: propWords }) {
   return (
     <div className="flash-stage">
       <div className="flash-progress">
-        <span>{idx + 1} / {cards.length}</span>
+        <span>{displayNum} / {origTotal}</span>
         <div className="flash-bar"><div className="flash-bar-fill" style={{ width: `${progress}%` }} /></div>
         <span style={{ fontSize: 11, color: 'var(--ink-4)' }}>{API_URL ? 'Your deck' : 'Demo deck'}</span>
       </div>
+
+      {isReview && (
+        <div className={`review-banner${prevResult === 'no' ? ' hard' : ' reinforce'}`}>
+          {prevResult === 'no'
+            ? '⚠ Marked as Don\'t know — try again'
+            : '↻ Reinforcing — seen before'}
+        </div>
+      )}
 
       <div className="card-frame">
         <div className={`card${flipped ? ' flipped' : ''}`} onClick={() => setFlipped(f => !f)}>
