@@ -144,10 +144,10 @@ export function Flashcards({ words: propWords }) {
               onClick={e => { e.stopPropagation(); speak(word); }}
               style={{
                 position: 'absolute', top: 16, right: 16,
-                background: 'rgba(255,255,255,0.08)',
-                border: '1px solid rgba(255,255,255,0.12)',
+                background: 'var(--bg-3)',
+                border: '1px solid var(--line)',
                 borderRadius: 999, padding: '6px 12px',
-                cursor: 'pointer', color: 'rgba(255,255,255,0.75)',
+                cursor: 'pointer', color: 'var(--ink-2)',
                 display: 'flex', alignItems: 'center', gap: 6,
                 fontSize: 12, fontWeight: 500, letterSpacing: 0.2,
               }}
