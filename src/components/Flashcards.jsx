@@ -138,29 +138,31 @@ export function Flashcards({ words: propWords }) {
         <div className={`card${flipped ? ' flipped' : ''}`} onClick={() => setFlipped(f => !f)}>
 
           {/* Front */}
-          <div className="face face-front">
+          <div className="face face-front" style={{ justifyContent: 'space-between' }}>
             <span className="face-corner">FRONT</span>
+            <div>
+              <div className="card-meta"><span className="article">{article}</span></div>
+              <h2 className="card-word">{word}</h2>
+              <div className="card-tags">
+                {cefr && <span className="tag cefr">{cefr}</span>}
+                {topic && <span className="tag">{topic}</span>}
+              </div>
+            </div>
             <button
               onClick={e => { e.stopPropagation(); speak(word); }}
               style={{
-                position: 'absolute', top: 16, right: 16,
+                alignSelf: 'flex-end',
                 background: 'var(--bg-3)',
                 border: '1px solid var(--line)',
-                borderRadius: 999, padding: '6px 12px',
+                borderRadius: 999, padding: '6px 14px',
                 cursor: 'pointer', color: 'var(--ink-2)',
                 display: 'flex', alignItems: 'center', gap: 6,
-                fontSize: 12, fontWeight: 500, letterSpacing: 0.2,
+                fontSize: 12, fontWeight: 500,
               }}
               title="Listen"
             >
               <IconSound /><span>Listen</span>
             </button>
-            <div className="card-meta"><span className="article">{article}</span></div>
-            <h2 className="card-word">{word}</h2>
-            <div className="card-tags">
-              {cefr && <span className="tag cefr">{cefr}</span>}
-              {topic && <span className="tag">{topic}</span>}
-            </div>
           </div>
 
           {/* Back */}
