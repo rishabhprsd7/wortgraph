@@ -150,8 +150,8 @@ export function Flashcards({ words: propWords }) {
               onClick={e => { e.stopPropagation(); speak(word); }}
               style={{
                 alignSelf: 'flex-start',
-                background: 'var(--bg-3)',
-                border: '1px solid var(--line)',
+                background: 'rgba(255,255,255,0.6)',
+                border: '1px solid rgba(127, 119, 221, 0.2)',
                 borderRadius: 999, padding: '6px 14px',
                 cursor: 'pointer', color: 'var(--ink-2)',
                 display: 'flex', alignItems: 'center', gap: 6,

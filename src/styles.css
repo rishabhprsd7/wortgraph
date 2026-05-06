@@ -665,8 +665,9 @@ a { color: inherit; text-decoration: none; }
   -webkit-backface-visibility: hidden;
 }
 .face-front {
-  background: var(--bg);
-  border: 0.5px solid var(--line);
+  background: linear-gradient(180deg, #f6f3fb 0%, #ede8f5 100%);
+  border: 0.5px solid #d8d2e8;
+  box-shadow: 0 1px 2px rgba(35, 28, 70, 0.04), 0 4px 12px rgba(35, 28, 70, 0.05);
 }
 .face-back {
   background: var(--dark-card);
@@ -756,11 +757,12 @@ a { color: inherit; text-decoration: none; }
   letter-spacing: 0.04em;
 }
 .response-row {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
+  display: flex;
+  gap: 12px;
+  justify-content: center;
 }
 .resp-btn {
+  flex: 0 1 220px;
   display: flex;
   align-items: center;
   justify-content: center;
