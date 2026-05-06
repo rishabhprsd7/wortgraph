@@ -7,10 +7,22 @@ const API_URL = import.meta.env.VITE_API_URL || '';
 function speak(word) {
   if (!window.speechSynthesis) return;
   window.speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(word);
-  u.lang = 'de-DE';
-  u.rate = 0.85;
-  window.speechSynthesis.speak(u);
+
+  const fire = () => {
+    const u = new SpeechSynthesisUtterance(word);
+    u.lang = 'de-DE';
+    u.rate = 0.85;
+    const deVoice = window.speechSynthesis.getVoices().find(v => v.lang.startsWith('de'));
+    if (deVoice) u.voice = deVoice;
+    window.speechSynthesis.speak(u);
+  };
+
+  // Chrome loads voices async — wait if not ready yet.
+  if (window.speechSynthesis.getVoices().length === 0) {
+    window.speechSynthesis.addEventListener('voiceschanged', fire, { once: true });
+  } else {
+    fire();
+  }
 }
 
 async function postReview(word, correct) {
