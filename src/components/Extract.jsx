@@ -8,13 +8,12 @@ const API_URL = import.meta.env.VITE_API_URL || '';
 
 const LIMITS = {
   Text:    { min: 8,  max: 20, ratio: 0.15 },
-  Podcast: { min: 15, max: 40, ratio: 0.12 },
   YouTube: { min: 15, max: 40, ratio: 0.12 },
 };
 
-const PROMPT = (text, source = 'Article') => {
+const PROMPT = (text, source = 'Text') => {
   const wordCount = text.trim().split(/\s+/).length;
-  const { min, max, ratio } = LIMITS[source] || LIMITS.Article;
+  const { min, max, ratio } = LIMITS[source] || LIMITS.Text;
   const target = Math.min(max, Math.max(min, Math.round(wordCount * ratio)));
   return `You are a strict German language teacher selecting vocabulary for a B1+ learner.
 
@@ -102,7 +101,7 @@ export function Extract({ userId }) {
   });
 
   const hasApiKey = !!GROQ_KEY;
-  const sources = ["Text", "Podcast", "YouTube"];
+  const sources = ["Text", "YouTube"];
   const isUrl = /^https?:\/\/\S+$/.test(text.trim());
 
   const onExtract = async () => {
@@ -168,7 +167,7 @@ export function Extract({ userId }) {
       )}
       <div className="dropzone">
         <div className="dz-icon"><IconKeyboard /></div>
-        <div className="dz-title">Paste German text, article, or transcript</div>
+        <div className="dz-title">Paste German text or YouTube transcript</div>
         <div className="dz-sub">
           {hasApiKey
             ? "Powered by Groq AI · extracts real vocabulary from any text"
@@ -189,7 +188,6 @@ export function Extract({ userId }) {
             <b>Paste the transcript, not the URL.</b> Wortgraph reads text — URLs contain no words to extract.
             <div style={{ marginTop: 6, color: '#5a4200' }}>
               {source === 'YouTube' && <span><b>YouTube:</b> open the video → click <b>···</b> below the title → <b>Show transcript</b> → select all → paste here.</span>}
-              {source === 'Podcast' && <span><b>Podcast:</b> find the episode page and copy the episode description or show notes, or use a transcription tool like <b>Whisper</b> or <b>otter.ai</b> to get the transcript.</span>}
               {source === 'Text' && <span><b>Text:</b> open the article, select all text and paste it here.</span>}
             </div>
           </div>
