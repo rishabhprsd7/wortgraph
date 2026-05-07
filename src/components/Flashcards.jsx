@@ -34,6 +34,17 @@ async function postReview(word, correct, userId) {
   }).catch(() => {});
 }
 
+function recordActivity(userId) {
+  const today = new Date().toISOString().slice(0, 10);
+  try {
+    const key = `wg_activity_${userId || 'default'}`;
+    const dates = JSON.parse(localStorage.getItem(key) || '[]');
+    if (!dates.includes(today)) {
+      localStorage.setItem(key, JSON.stringify([...dates, today]));
+    }
+  } catch {}
+}
+
 function buildQueue(cards) {
   return cards.map(c => ({ card: c, isReview: false, prevResult: null }));
 }
@@ -85,6 +96,7 @@ export function Flashcards({ words: propWords, userId }) {
     const correct = kind === 'know';
     const word = card?.word ?? card?.lemma;
     if (word) postReview(word, correct, userId);
+    recordActivity(userId);
     setStats(s => ({ ...s, [kind]: s[kind] + 1 }));
     if (kind === 'no' && word) setNewWords(prev => new Set([...prev, word]));
     setFlipped(false);

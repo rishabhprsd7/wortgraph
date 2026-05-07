@@ -106,7 +106,7 @@ export default function App() {
     <div className="app">
       {!userId && <WelcomeModal onSubmit={handleSetUser} />}
       <Nav
-        route={route} setRoute={setRoute} dark={route === 'home'} streak={5}
+        route={route} setRoute={setRoute} dark={route === 'home'}
         userId={userId} onSwitchUser={handleSwitchUser} onTryDemo={handleTryDemo}
       />
 
@@ -150,7 +150,7 @@ export default function App() {
             {route === 'agent' && (
               <>
                 <ScreenHeader
-                  title="AI learning coach"
+                  title="AI Coach"
                   sub="Powered by Neo4j · analyses your graph to suggest what to study next"
                 />
                 <Agent userId={userId} />

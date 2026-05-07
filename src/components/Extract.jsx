@@ -150,7 +150,7 @@ export function Extract({ userId }) {
     try {
       await saveWordsToDeck(selectedWords, source, text.slice(0, 120), userId);
       setSaved(true);
-      showToast(`${selectedWords.length} word${selectedWords.length === 1 ? '' : 's'} added to your flashcard deck`);
+      showToast(`${selectedWords.length} word${selectedWords.length === 1 ? '' : 's'} added — head to the Learn tab to study them`);
     } catch (e) {
       console.error('Save error:', e);
     } finally {

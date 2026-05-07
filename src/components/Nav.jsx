@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 
 export function Logo({ dark }) {
   const c = dark ? "#9d96e8" : "#7f77dd";
@@ -15,6 +15,41 @@ export function Logo({ dark }) {
       <span>Wortgraph</span>
     </span>
   );
+}
+
+function useStreakData(userId) {
+  return useMemo(() => {
+    try {
+      const key = `wg_activity_${userId || 'default'}`;
+      const stored = JSON.parse(localStorage.getItem(key) || '[]');
+      const dateSet = new Set(stored);
+      const today = new Date().toISOString().slice(0, 10);
+
+      const days = Array.from({ length: 7 }, (_, i) => {
+        const d = new Date();
+        d.setDate(d.getDate() - (6 - i));
+        const iso = d.toISOString().slice(0, 10);
+        return {
+          label: 'SMTWTFS'[d.getDay()],
+          active: dateSet.has(iso),
+          isToday: iso === today,
+        };
+      });
+
+      let streak = 0;
+      const startOffset = dateSet.has(today) ? 0 : 1;
+      for (let i = startOffset; i < 365; i++) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        if (dateSet.has(d.toISOString().slice(0, 10))) streak++;
+        else break;
+      }
+
+      return { days, streak };
+    } catch {
+      return { days: [], streak: 0 };
+    }
+  }, [userId]);
 }
 
 function UserMenu({ userId, dark, onSwitchUser, onTryDemo }) {
@@ -83,12 +118,13 @@ function UserMenu({ userId, dark, onSwitchUser, onTryDemo }) {
   );
 }
 
-export function Nav({ route, setRoute, dark, streak, userId, onSwitchUser, onTryDemo }) {
+export function Nav({ route, setRoute, dark, userId, onSwitchUser, onTryDemo }) {
+  const { days, streak } = useStreakData(userId);
   const links = [
     { id: "learn", label: "Learn" },
     { id: "explore", label: "Explore" },
     { id: "progress", label: "Progress" },
-    { id: "agent", label: "Agent" },
+    { id: "agent", label: "AI Coach" },
   ];
   return (
     <nav className={`nav${dark ? " dark" : ""}`}>
@@ -108,8 +144,22 @@ export function Nav({ route, setRoute, dark, streak, userId, onSwitchUser, onTry
       </div>
       <div className="nav-right">
         <span className="streak">
-          <span className="streak-dot"></span>
-          <span>{streak}-day streak</span>
+          {days.map((d, i) => (
+            <span key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              <span style={{ fontSize: 9, fontWeight: 600, color: d.active ? (dark ? '#c4bff5' : 'var(--violet)') : (dark ? 'rgba(255,255,255,0.25)' : 'var(--ink-4)') }}>
+                {d.label}
+              </span>
+              <span style={{
+                width: 6, height: 6, borderRadius: '50%',
+                background: d.active ? (dark ? '#c4bff5' : 'var(--violet)') : (dark ? 'rgba(255,255,255,0.15)' : 'var(--line)'),
+                outline: d.isToday ? `2px solid ${dark ? 'rgba(196,191,245,0.5)' : 'rgba(127,119,221,0.35)'}` : 'none',
+                outlineOffset: 1,
+              }} />
+            </span>
+          ))}
+          <span style={{ marginLeft: 6, fontSize: 12, whiteSpace: 'nowrap' }}>
+            {streak > 0 ? `${streak}-day streak` : 'Start streak'}
+          </span>
         </span>
         {userId
           ? <UserMenu userId={userId} dark={dark} onSwitchUser={onSwitchUser} onTryDemo={onTryDemo} />
