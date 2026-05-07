@@ -253,6 +253,98 @@ function StuckWordsPanel({ insight }) {
   );
 }
 
+function SemanticSearch() {
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [searched, setSearched] = useState(false);
+  const [error, setError] = useState(null);
+
+  const examples = ['political decisions', 'Umwelt und Klima', 'money and debt', 'community and society', 'rules and laws'];
+
+  const search = async (q) => {
+    const term = (q || query).trim();
+    if (!term) return;
+    setSearching(true);
+    setSearched(false);
+    setError(null);
+    setResults([]);
+    try {
+      const res = await fetch(`${API_URL}/api/search/similar?q=${encodeURIComponent(term)}&limit=8`);
+      if (!res.ok) throw new Error(`Search error ${res.status}`);
+      const data = await res.json();
+      setResults(data);
+      setSearched(true);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  return (
+    <div className="panel" style={{ borderLeft: '3px solid #1d9e75' }}>
+      <div className="panel-h">
+        <span className="t">Semantic search</span>
+        <span className="s">Find words by meaning — type English or German</span>
+      </div>
+      <div className="panel-b">
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+          <input
+            style={{ flex: 1, border: 'var(--hairline-strong)', borderRadius: 8, padding: '8px 12px', fontSize: 13, outline: 'none', background: 'var(--bg)' }}
+            placeholder="e.g. political decisions, Umwelt, money and society…"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && search()}
+          />
+          <button className="btn btn-primary btn-sm" onClick={() => search()} disabled={!query.trim() || searching}>
+            {searching ? 'Searching…' : 'Search'}
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
+          {examples.map(ex => (
+            <button key={ex} onClick={() => { setQuery(ex); search(ex); }} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 14, background: 'var(--bg-2)', border: 'var(--hairline)', color: 'var(--ink-3)', cursor: 'pointer' }}>
+              {ex}
+            </button>
+          ))}
+        </div>
+
+        {error && <p style={{ color: 'var(--red)', fontSize: 13, margin: 0 }}>{error.includes('GEMINI_KEY') ? 'Add GEMINI_KEY to server .env to enable semantic search.' : error}</p>}
+
+        {searched && results.length === 0 && !error && (
+          <p style={{ fontSize: 13, color: 'var(--ink-3)', margin: 0 }}>No results — embed your words first via POST /api/embed/words</p>
+        )}
+
+        {results.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {results.map(r => (
+              <div key={r.word} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, padding: '10px 12px', borderRadius: 8, background: 'var(--bg-2)', border: 'var(--hairline)' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                    <span style={{ color: 'var(--violet)', fontSize: 12 }}>{r.article}</span>
+                    <span style={{ fontSize: 15, fontWeight: 600 }}>{r.word}</span>
+                    <span style={{ fontSize: 12, color: 'var(--ink-3)', fontStyle: 'italic' }}>{r.translation}</span>
+                    {r.cefr && <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 5px', borderRadius: 6, background: (CEFR_COLOR[r.cefr] || '#999') + '22', color: CEFR_COLOR[r.cefr] || '#999' }}>{r.cefr}</span>}
+                  </div>
+                  {r.example && <div style={{ fontSize: 11, color: 'var(--ink-4)', fontStyle: 'italic' }}>„{r.example}"</div>}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
+                  <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>{Math.round(r.score * 100)}% match</span>
+                  {r.inDeck
+                    ? <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 8, background: '#1d9e7520', color: '#1d9e75', fontWeight: 600 }}>In deck</span>
+                    : <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 8, background: 'var(--violet-soft)', color: 'var(--violet)', fontWeight: 600 }}>Not in deck</span>
+                  }
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function Agent() {
   const [data, setData] = useState(null);
   const [insight, setInsight] = useState(null);
@@ -422,6 +514,9 @@ export function Agent() {
           </div>
         </div>
       )}
+
+      {/* Semantic search */}
+      <SemanticSearch />
 
       {/* Chat */}
       <div className="panel">

@@ -31,12 +31,45 @@ async function runQuery(cypher, params = {}) {
   }
 }
 
+// ── Gemini embeddings (text-embedding-004, 768-dim, free tier) ───────────────
+const GEMINI_KEY = process.env.GEMINI_KEY;
+
+async function getEmbedding(text) {
+  if (!GEMINI_KEY) return null;
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${GEMINI_KEY}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'models/text-embedding-004', content: { parts: [{ text }] } })
+    }
+  );
+  if (!res.ok) throw new Error(`Gemini embed error ${res.status}: ${await res.text()}`);
+  const data = await res.json();
+  return data.embedding.values;
+}
+
+function wordEmbedText(w) {
+  return `${w.article || ''} ${w.lemma || w.word}: ${w.translation || ''}${w.example ? '. ' + w.example : ''}`.trim();
+}
+
 // Initialize schema constraints on startup
 async function initSchema() {
   try {
     await runQuery('CREATE CONSTRAINT word_unique IF NOT EXISTS FOR (w:Word) REQUIRE w.lemma IS UNIQUE');
     await runQuery('CREATE CONSTRAINT topic_unique IF NOT EXISTS FOR (t:Topic) REQUIRE t.name IS UNIQUE');
     await runQuery('CREATE CONSTRAINT user_unique IF NOT EXISTS FOR (u:User) REQUIRE u.id IS UNIQUE');
+    if (GEMINI_KEY) {
+      await runQuery(`
+        CREATE VECTOR INDEX word_embeddings IF NOT EXISTS
+        FOR (w:Word) ON (w.embedding)
+        OPTIONS {indexConfig: {
+          \`vector.dimensions\`: 768,
+          \`vector.similarity_function\`: 'cosine'
+        }}
+      `);
+      console.log('Neo4j vector index ready');
+    }
     console.log('Neo4j schema ready');
   } catch (e) {
     console.error('Schema init error:', e.message);
@@ -87,6 +120,16 @@ app.post('/api/words', async (req, res) => {
         MERGE (word)-[:EXTRACTED_FROM]->(s)
         MERGE (word)-[:BELONGS_TO]->(t)
       `, { lemma: w.word, article: w.article || '', cefr: w.cefr || 'B1', translation: w.translation || '', example: w.example || '', exampleTranslation: w.exampleTranslation || '', userId, sourceId, topic: source });
+
+      // Auto-embed if Gemini key is available (fire-and-forget, don't block the response)
+      if (GEMINI_KEY) {
+        getEmbedding(wordEmbedText({ ...w, lemma: w.word }))
+          .then(embedding => embedding && runQuery(
+            'MATCH (word:Word {lemma: $lemma}) SET word.embedding = $embedding',
+            { lemma: w.word, embedding }
+          ))
+          .catch(e => console.error(`Embed failed for ${w.word}:`, e.message));
+      }
     }
 
     // CO_OCCURS_WITH: connect every pair of words from this source.
@@ -210,6 +253,72 @@ app.get('/api/weak', async (req, res) => {
       cefr: r.get('cefr'),
       retention: r.get('retention')?.toNumber?.() ?? 0,
     })));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Semantic similarity search — find words by meaning, not keyword
+// GET /api/search/similar?q=sustainability&userId=default&limit=8
+app.get('/api/search/similar', async (req, res) => {
+  const { q, userId = 'default', limit = 8 } = req.query;
+  if (!q) return res.status(400).json({ error: 'q (query) required' });
+  if (!GEMINI_KEY) return res.status(503).json({ error: 'GEMINI_KEY not configured' });
+  try {
+    const embedding = await getEmbedding(q);
+    const records = await runQuery(`
+      CALL db.index.vector.queryNodes('word_embeddings', $limit, $embedding)
+      YIELD node AS w, score
+      OPTIONAL MATCH (u:User {id: $userId})-[r:ADDED]->(w)
+      RETURN w.lemma AS lemma, w.article AS article, w.translation AS translation,
+             w.cefr AS cefr, w.example AS example, w.exampleTranslation AS exampleTranslation,
+             score, (r IS NOT NULL) AS inDeck
+      ORDER BY score DESC
+    `, { embedding, limit: parseInt(limit), userId });
+
+    const num = v => v?.toNumber?.() ?? v ?? 0;
+    res.json(records.map(r => ({
+      word: r.get('lemma'),
+      article: r.get('article'),
+      translation: r.get('translation'),
+      cefr: r.get('cefr'),
+      example: r.get('example'),
+      exampleTranslation: r.get('exampleTranslation'),
+      score: Math.round(num(r.get('score')) * 100) / 100,
+      inDeck: r.get('inDeck'),
+    })));
+  } catch (e) {
+    console.error('Similarity search error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Bulk-embed all unembedded words (run once after seeding or upgrading)
+// POST /api/embed/words
+app.post('/api/embed/words', async (req, res) => {
+  if (!GEMINI_KEY) return res.status(503).json({ error: 'GEMINI_KEY not configured' });
+  try {
+    const records = await runQuery(`
+      MATCH (w:Word) WHERE w.embedding IS NULL
+      RETURN w.lemma AS lemma, w.article AS article,
+             w.translation AS translation, w.example AS example
+    `);
+    let embedded = 0, failed = 0;
+    for (const r of records) {
+      const lemma = r.get('lemma');
+      try {
+        const text = wordEmbedText({ lemma, article: r.get('article'), translation: r.get('translation'), example: r.get('example') });
+        const embedding = await getEmbedding(text);
+        if (embedding) {
+          await runQuery('MATCH (w:Word {lemma: $lemma}) SET w.embedding = $embedding', { lemma, embedding });
+          embedded++;
+        }
+      } catch (e) {
+        console.error(`Embed failed for ${lemma}:`, e.message);
+        failed++;
+      }
+    }
+    res.json({ embedded, failed, total: records.length });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

@@ -153,11 +153,30 @@ async function main() {
     console.log(`  ${word}: ${sequence.length} reviews → ~${pct}% correct`);
   }
 
+  console.log('\nEmbedding words with Gemini…');
+  try {
+    const embedRes = await fetch(`${API}/api/embed/words`, { method: 'POST' });
+    if (embedRes.ok) {
+      const { embedded, failed, total } = await embedRes.json();
+      console.log(`  Embedded ${embedded}/${total} words${failed ? ` (${failed} failed)` : ''}`);
+    } else {
+      const { error } = await embedRes.json().catch(() => ({}));
+      if (error?.includes('GEMINI_KEY')) {
+        console.log('  Skipped — add GEMINI_KEY to server/.env to enable semantic search');
+      } else {
+        console.log('  Embedding skipped:', error || embedRes.status);
+      }
+    }
+  } catch (e) {
+    console.log('  Embedding skipped:', e.message);
+  }
+
   console.log('\nDone! Your Neo4j graph now has:');
   console.log('  • 32 words across 4 topics (Article, Podcast, YouTube)');
   console.log('  • CO_OCCURS_WITH edges between words from the same source');
   console.log('  • Varied retention: high / medium / stuck / unreviewed');
   console.log('  • Word families: ver-, be-, ge-, -ung, -keit, -schaft visible');
+  console.log('  • Vector embeddings (if GEMINI_KEY set) for semantic search');
   console.log('\nRefresh the Agent tab to see insights populate.');
 }
 
