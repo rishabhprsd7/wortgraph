@@ -413,12 +413,14 @@ export function Agent() {
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, padding: '4px 0' }}>
 
-      {/* Top suggestion */}
+      {/* Overview row */}
+      <div className="agent-section-label">Overview</div>
+
       <div className="panel" style={{ borderLeft: '3px solid var(--violet)' }}>
         <div className="panel-h">
-          <span className="t">AI learning coach</span>
+          <span className="t">Learning path</span>
           <button className="btn btn-ghost btn-sm" onClick={fetchAll} disabled={loading}>
             {loading ? 'Thinking…' : 'Refresh'}
           </button>
@@ -446,7 +448,6 @@ export function Agent() {
         </div>
       </div>
 
-      {/* CEFR + review queue */}
       {data && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
           <div className="panel">
@@ -458,7 +459,6 @@ export function Agent() {
               }
             </div>
           </div>
-
           <div className="panel">
             <div className="panel-h"><span className="t">Review queue</span><span className="s">Low retention</span></div>
             <div className="panel-b">
@@ -480,47 +480,44 @@ export function Agent() {
         </div>
       )}
 
-      {/* Graph insights — the new heart of the agent */}
+      {/* Graph insights */}
       {insight && !loading && (
-        <div className="panel">
-          <div className="panel-h">
-            <span className="t">Graph insights</span>
-            <span className="s">Computed from your CO_OCCURS_WITH and BELONGS_TO edges</span>
+        <>
+          <div className="agent-section-label">Graph insights</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 14 }}>
+            <InsightCard icon="🌉" insight={insight.bridges}>
+              <BridgesPanel insight={insight.bridges} />
+            </InsightCard>
+            <InsightCard icon="🧩" insight={insight.weakClusters}>
+              <ClustersPanel insight={insight.weakClusters} />
+            </InsightCard>
+            <InsightCard icon="🎯" insight={insight.centralWeakWords}>
+              <CentralPanel insight={insight.centralWeakWords} />
+            </InsightCard>
+            <InsightCard icon="🔗" insight={insight.twinWords}>
+              <TwinsPanel insight={insight.twinWords} />
+            </InsightCard>
+            <InsightCard icon="📈" insight={insight.studyPriority}>
+              <StudyPriorityPanel insight={insight.studyPriority} />
+            </InsightCard>
+            <InsightCard icon="🌿" insight={insight.morphologyFamilies}>
+              <MorphologyPanel insight={insight.morphologyFamilies} />
+            </InsightCard>
+            <InsightCard icon="🔁" insight={insight.stuckWords}>
+              <StuckWordsPanel insight={insight.stuckWords} />
+            </InsightCard>
           </div>
-          <div className="panel-b">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 14 }}>
-              <InsightCard icon="🌉" insight={insight.bridges}>
-                <BridgesPanel insight={insight.bridges} />
-              </InsightCard>
-              <InsightCard icon="🧩" insight={insight.weakClusters}>
-                <ClustersPanel insight={insight.weakClusters} />
-              </InsightCard>
-              <InsightCard icon="🎯" insight={insight.centralWeakWords}>
-                <CentralPanel insight={insight.centralWeakWords} />
-              </InsightCard>
-              <InsightCard icon="🔗" insight={insight.twinWords}>
-                <TwinsPanel insight={insight.twinWords} />
-              </InsightCard>
-              <InsightCard icon="📈" insight={insight.studyPriority}>
-                <StudyPriorityPanel insight={insight.studyPriority} />
-              </InsightCard>
-              <InsightCard icon="🌿" insight={insight.morphologyFamilies}>
-                <MorphologyPanel insight={insight.morphologyFamilies} />
-              </InsightCard>
-              <InsightCard icon="🔁" insight={insight.stuckWords}>
-                <StuckWordsPanel insight={insight.stuckWords} />
-              </InsightCard>
-            </div>
-          </div>
-        </div>
+        </>
       )}
 
       {/* Semantic search */}
+      <div className="agent-section-label">Semantic search</div>
       <SemanticSearch />
 
       {/* Chat */}
+      <div className="agent-section-label">Coach</div>
       <div className="panel">
-        <div className="panel-h"><span className="t">Ask your coach</span><span className="s">Powered by Groq + Neo4j graph context</span></div>
+        <div className="panel-h"><span className="t">Ask your coach</span><span className="s">Graph-aware · reads your full vocabulary graph</span></div>
         <div className="panel-b" style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
           <div style={{ maxHeight: 320, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: 12 }}>
             {messages.map((m, i) => (
