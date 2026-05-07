@@ -1,7 +1,9 @@
 // Hackathon seed: 48 German words across 6 topics with realistic retention data
-// Run with: node seed.js   (server must be running on localhost:3001)
+// Run locally:      node seed.js
+// Run on production: API_URL=https://wortgraph.onrender.com SEED_USER=demo node seed.js
 
-const API = 'http://localhost:3001';
+const API = process.env.API_URL || 'http://localhost:3001';
+const SEED_USER = process.env.SEED_USER || 'default';
 
 const batches = [
   {
@@ -183,7 +185,7 @@ async function main() {
       words: batch.words,
       source: batch.source,
       snippet: batch.snippet,
-      userId: 'default',
+      userId: SEED_USER,
     });
     console.log(`  ✓ ${batch.source}: ${result.saved} words, ${result.edges} co-occurrence edges`);
   }
@@ -229,7 +231,7 @@ async function main() {
   for (const [word, sequence] of Object.entries(reviewScripts)) {
     if (sequence.length === 0) continue;
     for (const correct of sequence) {
-      await post('/api/review', { userId: 'default', word, correct });
+      await post('/api/review', { userId: SEED_USER, word, correct });
     }
     const pct = Math.round((sequence.filter(Boolean).length / sequence.length) * 100);
     const tag = pct >= 70 ? '✓' : pct >= 45 ? '~' : '✗';

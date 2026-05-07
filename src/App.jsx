@@ -43,6 +43,22 @@ function WelcomeModal({ onSubmit }) {
             Enter your name to start building your personal vocabulary graph.
           </div>
         </div>
+        <button
+          onClick={() => onSubmit('demo')}
+          style={{
+            width: '100%', padding: '11px 0', fontSize: 14, borderRadius: 10, cursor: 'pointer',
+            background: 'var(--violet-soft)', border: '1.5px solid var(--violet-line)',
+            color: 'var(--violet)', fontWeight: 600, display: 'flex', alignItems: 'center',
+            justifyContent: 'center', gap: 8,
+          }}
+        >
+          <span>✨</span> Try with demo data
+        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ flex: 1, height: 1, background: 'var(--line)' }} />
+          <span style={{ fontSize: 12, color: 'var(--ink-4)' }}>or</span>
+          <div style={{ flex: 1, height: 1, background: 'var(--line)' }} />
+        </div>
         <input
           autoFocus
           style={{
