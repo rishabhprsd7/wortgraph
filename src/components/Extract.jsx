@@ -104,9 +104,10 @@ export function Extract({ userId }) {
 
   const hasApiKey = !!GROQ_KEY;
   const sources = ["Article", "Interview", "Podcast", "YouTube"];
+  const isUrl = /^https?:\/\/\S+$/.test(text.trim());
 
   const onExtract = async () => {
-    if (!text.trim()) return;
+    if (!text.trim() || isUrl) return;
     setLoading(true);
     saveExtracted([]);
     saveAdded(() => new Set());
@@ -176,10 +177,24 @@ export function Extract({ userId }) {
         </div>
         <textarea
           className="dz-textarea"
-          placeholder="Die Inflation in der Eurozone ist im April erneut leicht gestiegen…"
+          placeholder="Paste the actual text or transcript here — not a URL…"
           value={text}
           onChange={e => saveText(e.target.value)}
         />
+        {isUrl && (
+          <div style={{
+            margin: '8px 0', padding: '12px 14px', borderRadius: 10,
+            background: '#fff8e6', border: '1px solid #f0c040',
+            fontSize: 13, color: '#7a5800', lineHeight: 1.6,
+          }}>
+            <b>Paste the transcript, not the URL.</b> Wortgraph reads text — URLs contain no words to extract.
+            {(source === 'YouTube' || source === 'Podcast') && (
+              <div style={{ marginTop: 6, color: '#5a4200' }}>
+                <b>How to get a YouTube transcript:</b> open the video → click <b>···</b> below the title → <b>Show transcript</b> → select all → paste here.
+              </div>
+            )}
+          </div>
+        )}
         <div className="source-chips">
           {sources.map(s => (
             <button
@@ -196,7 +211,7 @@ export function Extract({ userId }) {
             <IconPaste />
             Use sample text
           </button>
-          <button className="btn btn-primary btn-sm" onClick={onExtract} disabled={!text.trim() || loading}>
+          <button className="btn btn-primary btn-sm" onClick={onExtract} disabled={!text.trim() || loading || isUrl}>
             Extract vocabulary →
           </button>
         </div>
