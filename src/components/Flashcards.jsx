@@ -49,13 +49,14 @@ function buildQueue(cards) {
   return cards.map(c => ({ card: c, isReview: false, prevResult: null }));
 }
 
-export function Flashcards({ words: propWords, userId }) {
+export function Flashcards({ words: propWords, userId, sourceText }) {
   const [cards, setCards] = useState([]);
   const [loading, setLoading] = useState(!propWords);
   // deck = { queue: [{card, isReview, prevResult}], idx, done }
   const [deck, setDeck] = useState({ queue: [], idx: 0, done: false });
   const [flipped, setFlipped] = useState(false);
   const [stats, setStats] = useState({ know: 0, no: 0 });
+  const [showSourceText, setShowSourceText] = useState(false);
   // Track unique words the user didn't know (for end-of-session summary)
   const [newWords, setNewWords] = useState(new Set());
 
@@ -179,6 +180,33 @@ export function Flashcards({ words: propWords, userId }) {
         )}
 
         <button className="btn btn-primary btn-sm" onClick={restart}>Review again</button>
+
+        {sourceText && (
+          <div style={{ marginTop: 32, textAlign: 'left', borderTop: '1px solid var(--line)', paddingTop: 24 }}>
+            <button
+              onClick={() => setShowSourceText(s => !s)}
+              style={{
+                width: '100%', padding: '12px 16px', borderRadius: 10,
+                background: 'var(--violet-soft)', border: '1.5px solid var(--violet-line)',
+                color: 'var(--violet)', fontWeight: 600, fontSize: 14, cursor: 'pointer',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              }}
+            >
+              <span>Now read the original text</span>
+              <span style={{ fontSize: 12, opacity: 0.7 }}>{showSourceText ? '▲ hide' : '▼ show'}</span>
+            </button>
+            {showSourceText && (
+              <div style={{
+                marginTop: 10, padding: '20px 20px', borderRadius: 10,
+                background: 'var(--bg)', border: '0.5px solid var(--line)',
+                fontSize: 14, lineHeight: 1.9, color: 'var(--ink-2)',
+                whiteSpace: 'pre-wrap', textAlign: 'left', maxHeight: 400, overflowY: 'auto',
+              }}>
+                {sourceText}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
   }

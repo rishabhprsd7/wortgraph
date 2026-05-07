@@ -125,6 +125,7 @@ export function Nav({ route, setRoute, dark, userId, onSwitchUser, onTryDemo }) 
     { id: "explore", label: "Explore" },
     { id: "progress", label: "Progress" },
     { id: "agent", label: "AI Coach" },
+    { id: "about", label: "About" },
   ];
   return (
     <nav className={`nav${dark ? " dark" : ""}`}>

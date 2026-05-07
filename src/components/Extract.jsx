@@ -103,6 +103,9 @@ export function Extract({ userId }) {
   const hasApiKey = !!GROQ_KEY;
   const sources = ["Text", "YouTube"];
   const isUrl = /^https?:\/\/\S+$/.test(text.trim());
+  const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
+  const wordCountOver = wordCount > 1000;
+  const wordCountWarn = wordCount > 600 && !wordCountOver;
 
   const onExtract = async () => {
     if (!text.trim() || isUrl) return;
@@ -148,7 +151,7 @@ export function Extract({ userId }) {
     if (selectedWords.length === 0) return;
     setSaving(true);
     try {
-      await saveWordsToDeck(selectedWords, source, text.slice(0, 120), userId);
+      await saveWordsToDeck(selectedWords, source, text.slice(0, 3000), userId);
       setSaved(true);
       showToast(`${selectedWords.length} word${selectedWords.length === 1 ? '' : 's'} added — head to the Learn tab to study them`);
     } catch (e) {
@@ -179,6 +182,14 @@ export function Extract({ userId }) {
           value={text}
           onChange={e => saveText(e.target.value)}
         />
+        {wordCount > 0 && (
+          <div style={{ textAlign: 'right', fontSize: 12, marginTop: 4,
+            color: wordCountOver ? 'var(--red)' : wordCountWarn ? '#b07000' : 'var(--ink-4)' }}>
+            {wordCount} words
+            {wordCountWarn && ' · long text — consider pasting one section at a time'}
+            {wordCountOver && ' · too long — paste a shorter section (under 1000 words)'}
+          </div>
+        )}
         {isUrl && (
           <div style={{
             margin: '8px 0', padding: '12px 14px', borderRadius: 10,
@@ -208,7 +219,7 @@ export function Extract({ userId }) {
             <IconPaste />
             Use sample text
           </button>
-          <button className="btn btn-primary btn-sm" onClick={onExtract} disabled={!text.trim() || loading || isUrl}>
+          <button className="btn btn-primary btn-sm" onClick={onExtract} disabled={!text.trim() || loading || isUrl || wordCountOver}>
             Extract vocabulary →
           </button>
         </div>

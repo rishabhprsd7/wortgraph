@@ -177,7 +177,11 @@ export function Learn({ userId }) {
           ? <div style={{ textAlign: 'center', padding: 60, color: 'var(--ink-3)' }}>Loading…</div>
           : view === 'list'
             ? <WordListView words={words} />
-            : <Flashcards words={words} userId={userId} />
+            : <Flashcards
+                words={words}
+                userId={userId}
+                sourceText={selectedSource ? sources.find(s => s.id === selectedSource)?.snippet : undefined}
+              />
         }
       </div>
     </div>

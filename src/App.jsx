@@ -8,6 +8,7 @@ import { Extract } from './components/Extract';
 import { Dashboard } from './components/Dashboard';
 import { Agent } from './components/Agent';
 import { Graph } from './components/Graph';
+import { About } from './components/About';
 
 function ScreenHeader({ title, sub, right }) {
   return (
@@ -154,6 +155,12 @@ export default function App() {
                   sub="Powered by Neo4j · analyses your graph to suggest what to study next"
                 />
                 <Agent userId={userId} />
+              </>
+            )}
+            {route === 'about' && (
+              <>
+                <ScreenHeader title="About Wortgraph" sub="Why this exists, how it works, and who it's for" />
+                <About setRoute={setRoute} />
               </>
             )}
           </main>
