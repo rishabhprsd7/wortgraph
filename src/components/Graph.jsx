@@ -101,7 +101,7 @@ function useForceLayout(nodes, edges, width, height) {
   return [stateRef.current?.positions, reheat];
 }
 
-export function Graph() {
+export function Graph({ userId }) {
   const [data, setData] = useState({ nodes: [], edges: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -126,7 +126,8 @@ export function Graph() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_URL}/api/graph?minStrength=${minStrength}`);
+      const uidParam = userId ? `&userId=${encodeURIComponent(userId)}` : '';
+      const res = await fetch(`${API_URL}/api/graph?minStrength=${minStrength}${uidParam}`);
       if (!res.ok) throw new Error(`Server error ${res.status}`);
       setData(await res.json());
     } catch (e) {

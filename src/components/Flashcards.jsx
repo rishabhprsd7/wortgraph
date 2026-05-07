@@ -25,12 +25,12 @@ function speak(word) {
   }
 }
 
-async function postReview(word, correct) {
+async function postReview(word, correct, userId) {
   if (!API_URL) return;
   await fetch(`${API_URL}/api/review`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ userId: 'default', word, correct })
+    body: JSON.stringify({ userId: userId || 'default', word, correct })
   }).catch(() => {});
 }
 
@@ -38,7 +38,7 @@ function buildQueue(cards) {
   return cards.map(c => ({ card: c, isReview: false, prevResult: null }));
 }
 
-export function Flashcards({ words: propWords }) {
+export function Flashcards({ words: propWords, userId }) {
   const [cards, setCards] = useState([]);
   const [loading, setLoading] = useState(!propWords);
   // deck = { queue: [{card, isReview, prevResult}], idx, done }
@@ -56,7 +56,7 @@ export function Flashcards({ words: propWords }) {
       return;
     }
     if (!API_URL) { setCards(staticCards); setLoading(false); return; }
-    fetch(`${API_URL}/api/words`)
+    fetch(`${API_URL}/api/words${userId ? `?userId=${encodeURIComponent(userId)}` : ''}`)
       .then(r => r.json())
       .then(data => setCards(data.length > 0 ? data : staticCards))
       .catch(() => setCards(staticCards))
@@ -84,7 +84,7 @@ export function Flashcards({ words: propWords }) {
   const respond = (kind) => {
     const correct = kind === 'know';
     const word = card?.word ?? card?.lemma;
-    if (word) postReview(word, correct);
+    if (word) postReview(word, correct, userId);
     setStats(s => ({ ...s, [kind]: s[kind] + 1 }));
     if (kind === 'no' && word) setNewWords(prev => new Set([...prev, word]));
     setFlipped(false);

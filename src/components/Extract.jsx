@@ -58,12 +58,12 @@ function fallbackExtract(text) {
   return [...inText, ...rest.slice(0, 8 - inText.length)];
 }
 
-async function saveWordsToDeck(words, source, snippet) {
+async function saveWordsToDeck(words, source, snippet, userId) {
   if (!API_URL) throw new Error('VITE_API_URL is not set in .env');
   const res = await fetch(`${API_URL}/api/words`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ words, source, snippet, userId: 'default' })
+    body: JSON.stringify({ words, source, snippet, userId: userId || 'default' })
   });
   if (!res.ok) throw new Error(`Server error ${res.status}: ${await res.text()}`);
   return res.json();
@@ -74,7 +74,7 @@ const LS = {
   set: (k, v) => { try { sessionStorage.setItem(k, JSON.stringify(v)); } catch {} }
 };
 
-export function Extract() {
+export function Extract({ userId }) {
   const [text, setText] = useState(() => LS.get('ex_text', ""));
   const [source, setSource] = useState(() => LS.get('ex_source', "Article"));
   const [extracted, setExtracted] = useState(() => LS.get('ex_words', []));
@@ -141,7 +141,7 @@ export function Extract() {
     if (selectedWords.length === 0) return;
     setSaving(true);
     try {
-      await saveWordsToDeck(selectedWords, source, text.slice(0, 120));
+      await saveWordsToDeck(selectedWords, source, text.slice(0, 120), userId);
       setSaved(true);
       showToast(`${selectedWords.length} word${selectedWords.length === 1 ? '' : 's'} added to your flashcard deck`);
     } catch (e) {

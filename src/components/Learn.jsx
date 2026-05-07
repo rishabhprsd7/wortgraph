@@ -79,7 +79,7 @@ function SourceItem({ source, selected, onClick }) {
   );
 }
 
-export function Learn() {
+export function Learn({ userId }) {
   const [sources, setSources] = useState([]);
   const [selectedSource, setSelectedSource] = useState(null);
   const [words, setWords] = useState([]);
@@ -88,7 +88,7 @@ export function Learn() {
 
   useEffect(() => {
     if (!API_URL) return;
-    fetch(`${API_URL}/api/sources`)
+    fetch(`${API_URL}/api/sources${userId ? `?userId=${encodeURIComponent(userId)}` : ''}`)
       .then(r => r.json())
       .then(data => {
         setSources(data);
@@ -100,9 +100,10 @@ export function Learn() {
   useEffect(() => {
     setLoadingWords(true);
     if (!API_URL) { setWords(staticCards); setLoadingWords(false); return; }
+    const uidParam = userId ? `userId=${encodeURIComponent(userId)}` : '';
     const url = selectedSource
-      ? `${API_URL}/api/words?sourceId=${encodeURIComponent(selectedSource)}`
-      : `${API_URL}/api/words`;
+      ? `${API_URL}/api/words?sourceId=${encodeURIComponent(selectedSource)}${uidParam ? '&' + uidParam : ''}`
+      : `${API_URL}/api/words${uidParam ? '?' + uidParam : ''}`;
     fetch(url)
       .then(r => r.json())
       .then(data => setWords(data.length > 0 ? data : selectedSource ? [] : staticCards))
@@ -176,7 +177,7 @@ export function Learn() {
           ? <div style={{ textAlign: 'center', padding: 60, color: 'var(--ink-3)' }}>Loading…</div>
           : view === 'list'
             ? <WordListView words={words} />
-            : <Flashcards words={words} />
+            : <Flashcards words={words} userId={userId} />
         }
       </div>
     </div>

@@ -354,7 +354,7 @@ function SemanticSearch() {
   );
 }
 
-export function Agent() {
+export function Agent({ userId }) {
   const [data, setData] = useState(null);
   const [insight, setInsight] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -378,7 +378,7 @@ export function Agent() {
       const res = await fetch(`${API_URL}/api/agent/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userMsg.content, history })
+        body: JSON.stringify({ message: userMsg.content, history, userId: userId || 'default' })
       });
       if (!res.ok) {
         const { error } = await res.json().catch(() => ({}));
@@ -403,9 +403,10 @@ export function Agent() {
     setLoading(true);
     setError(null);
     try {
+      const uid = userId ? `?userId=${encodeURIComponent(userId)}` : '';
       const [sRes, iRes] = await Promise.all([
-        fetch(`${API_URL}/api/agent/suggest`),
-        fetch(`${API_URL}/api/agent/insight`),
+        fetch(`${API_URL}/api/agent/suggest${uid}`),
+        fetch(`${API_URL}/api/agent/insight${uid}`),
       ]);
       if (!sRes.ok) throw new Error(`Server error ${sRes.status}`);
       if (!iRes.ok) throw new Error(`Server error ${iRes.status}`);
