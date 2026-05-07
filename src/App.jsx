@@ -92,10 +92,23 @@ export default function App() {
     setUserId(id);
   };
 
+  const handleSwitchUser = () => {
+    localStorage.removeItem('wg_user');
+    setUserId(null);
+  };
+
+  const handleTryDemo = () => {
+    localStorage.setItem('wg_user', 'demo');
+    setUserId('demo');
+  };
+
   return (
     <div className="app">
       {!userId && <WelcomeModal onSubmit={handleSetUser} />}
-      <Nav route={route} setRoute={setRoute} dark={route === 'home'} streak={5} userId={userId} />
+      <Nav
+        route={route} setRoute={setRoute} dark={route === 'home'} streak={5}
+        userId={userId} onSwitchUser={handleSwitchUser} onTryDemo={handleTryDemo}
+      />
 
       {route === 'home' ? (
         <Landing setRoute={setRoute} />

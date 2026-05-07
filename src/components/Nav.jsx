@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 export function Logo({ dark }) {
   const c = dark ? "#9d96e8" : "#7f77dd";
   return (
@@ -15,7 +17,73 @@ export function Logo({ dark }) {
   );
 }
 
-export function Nav({ route, setRoute, dark, streak }) {
+function UserMenu({ userId, dark, onSwitchUser, onTryDemo }) {
+  const [open, setOpen] = useState(false);
+  const label = userId === 'demo' ? '✨ demo' : userId;
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        className={`btn btn-sm ${dark ? 'btn-ghost-dark' : 'btn-ghost'}`}
+        style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+      >
+        <span style={{
+          width: 22, height: 22, borderRadius: '50%', background: 'var(--violet)',
+          color: '#fff', fontSize: 11, fontWeight: 700,
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          {(userId?.[0] || '?').toUpperCase()}
+        </span>
+        <span style={{ maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {label}
+        </span>
+        <span style={{ fontSize: 10, opacity: 0.6 }}>▾</span>
+      </button>
+
+      {open && (
+        <>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 99 }} onClick={() => setOpen(false)} />
+          <div style={{
+            position: 'absolute', top: 'calc(100% + 8px)', right: 0, zIndex: 100,
+            background: '#fff', border: '1px solid var(--line)', borderRadius: 12,
+            boxShadow: '0 8px 24px rgba(0,0,0,0.12)', minWidth: 180, overflow: 'hidden',
+          }}>
+            <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)' }}>
+              <div style={{ fontSize: 11, color: 'var(--ink-4)', marginBottom: 2 }}>Signed in as</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{userId}</div>
+            </div>
+            {userId !== 'demo' && (
+              <button
+                onClick={() => { setOpen(false); onTryDemo(); }}
+                style={{
+                  width: '100%', padding: '10px 14px', background: 'none', border: 'none',
+                  textAlign: 'left', cursor: 'pointer', fontSize: 13, color: 'var(--violet)',
+                  fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8,
+                  borderBottom: '1px solid var(--line)',
+                }}
+              >
+                ✨ Try demo data
+              </button>
+            )}
+            <button
+              onClick={() => { setOpen(false); onSwitchUser(); }}
+              style={{
+                width: '100%', padding: '10px 14px', background: 'none', border: 'none',
+                textAlign: 'left', cursor: 'pointer', fontSize: 13, color: 'var(--ink-2)',
+                display: 'flex', alignItems: 'center', gap: 8,
+              }}
+            >
+              ↩ Switch user
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+export function Nav({ route, setRoute, dark, streak, userId, onSwitchUser, onTryDemo }) {
   const links = [
     { id: "learn", label: "Learn" },
     { id: "explore", label: "Explore" },
@@ -43,7 +111,10 @@ export function Nav({ route, setRoute, dark, streak }) {
           <span className="streak-dot"></span>
           <span>{streak}-day streak</span>
         </span>
-        <button className={`btn btn-sm ${dark ? "btn-ghost-dark" : "btn-ghost"}`}>Sign in</button>
+        {userId
+          ? <UserMenu userId={userId} dark={dark} onSwitchUser={onSwitchUser} onTryDemo={onTryDemo} />
+          : <button className={`btn btn-sm ${dark ? "btn-ghost-dark" : "btn-ghost"}`}>Sign in</button>
+        }
       </div>
     </nav>
   );
