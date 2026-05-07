@@ -55,20 +55,53 @@ function WordListView({ words }) {
   );
 }
 
-function SourceItem({ source, selected, onClick }) {
+function IconDoc() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 1H3a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V6L9 1z"/>
+      <polyline points="9 1 9 6 14 6"/>
+      <line x1="5" y1="9" x2="11" y2="9"/>
+      <line x1="5" y1="12" x2="9" y2="12"/>
+    </svg>
+  );
+}
+
+function SourceItem({ source, selected, onClick, showingText, onToggleText }) {
   const date = source.addedAt ? new Date(source.addedAt).toLocaleDateString('en', { month: 'short', day: 'numeric' }) : '';
+  const hasText = !!(source.snippet && source.snippet.length > 80);
+
   return (
     <div
-      onClick={onClick}
       style={{
-        padding: '10px 12px', borderRadius: 8, cursor: 'pointer', marginBottom: 4,
+        padding: '10px 12px', borderRadius: 8, marginBottom: 4,
         background: selected ? 'var(--violet-soft)' : 'transparent',
         border: selected ? '0.5px solid var(--violet-line)' : '0.5px solid transparent',
+        cursor: 'pointer',
       }}
+      onClick={onClick}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: 12, fontWeight: 600, color: selected ? 'var(--violet)' : 'var(--ink-2)' }}>{source.type}</span>
-        <span style={{ fontSize: 11, color: 'var(--ink-4)', whiteSpace: 'nowrap' }}>{source.wordCount}w · {date}</span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6 }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: selected ? 'var(--violet)' : 'var(--ink-2)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {source.type}
+        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+          <span style={{ fontSize: 11, color: 'var(--ink-4)', whiteSpace: 'nowrap' }}>{source.wordCount}w · {date}</span>
+          {hasText && (
+            <button
+              onClick={e => { e.stopPropagation(); onToggleText(); }}
+              title={showingText ? 'Hide text' : 'View original text'}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: 22, height: 22, borderRadius: 5, border: 'none', cursor: 'pointer',
+                background: showingText ? 'var(--violet)' : 'var(--bg-3)',
+                color: showingText ? '#fff' : 'var(--ink-3)',
+                flexShrink: 0,
+              }}
+            >
+              <IconDoc />
+            </button>
+          )}
+        </div>
       </div>
       {source.snippet && (
         <div style={{ fontSize: 11, color: 'var(--ink-4)', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -79,12 +112,47 @@ function SourceItem({ source, selected, onClick }) {
   );
 }
 
+function TextPanel({ source, onClose }) {
+  return (
+    <div style={{
+      marginBottom: 16, borderRadius: 10,
+      border: '0.5px solid var(--violet-line)',
+      background: 'var(--violet-soft)',
+      overflow: 'hidden',
+    }}>
+      <div style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        padding: '10px 16px', borderBottom: '0.5px solid var(--violet-line)',
+      }}>
+        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--violet)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          Original text · {source.type}
+        </span>
+        <button
+          onClick={onClose}
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            fontSize: 16, color: 'var(--ink-3)', lineHeight: 1, padding: '0 2px',
+          }}
+        >×</button>
+      </div>
+      <div style={{
+        padding: '16px 20px', fontSize: 14, lineHeight: 1.85,
+        color: 'var(--ink-2)', whiteSpace: 'pre-wrap',
+        maxHeight: 320, overflowY: 'auto',
+      }}>
+        {source.snippet}
+      </div>
+    </div>
+  );
+}
+
 export function Learn({ userId }) {
   const [sources, setSources] = useState([]);
   const [selectedSource, setSelectedSource] = useState(null);
   const [words, setWords] = useState([]);
-  const [view, setView] = useState('list'); // 'list' | 'flashcards'
+  const [view, setView] = useState('list');
   const [loadingWords, setLoadingWords] = useState(true);
+  const [textSourceId, setTextSourceId] = useState(null);
 
   useEffect(() => {
     if (!API_URL) return;
@@ -112,11 +180,12 @@ export function Learn({ userId }) {
   }, [selectedSource]);
 
   const totalWords = words.length;
+  const textSource = textSourceId ? sources.find(s => s.id === textSourceId) : null;
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 20, alignItems: 'start' }}>
 
-      {/* Source history sidebar */}
+      {/* Source sidebar */}
       <div style={{ position: 'sticky', top: 24 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8, paddingLeft: 4 }}>
           Sources
@@ -140,6 +209,8 @@ export function Learn({ userId }) {
             source={s}
             selected={selectedSource === s.id}
             onClick={() => setSelectedSource(s.id)}
+            showingText={textSourceId === s.id}
+            onToggleText={() => setTextSourceId(prev => prev === s.id ? null : s.id)}
           />
         ))}
         {sources.length === 0 && API_URL && (
@@ -151,6 +222,11 @@ export function Learn({ userId }) {
 
       {/* Main content */}
       <div>
+        {/* Text panel */}
+        {textSource && (
+          <TextPanel source={textSource} onClose={() => setTextSourceId(null)} />
+        )}
+
         {/* View toggle */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>
