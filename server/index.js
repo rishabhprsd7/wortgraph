@@ -37,7 +37,7 @@ const GEMINI_KEY = process.env.GEMINI_KEY;
 async function getEmbedding(text) {
   if (!GEMINI_KEY) return null;
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${GEMINI_KEY}`,
+    `https://generativelanguage.googleapis.com/v1/models/text-embedding-004:embedContent?key=${GEMINI_KEY}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
