@@ -7,10 +7,9 @@ const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const API_URL = import.meta.env.VITE_API_URL || '';
 
 const LIMITS = {
-  Article:   { min: 8,  max: 20, ratio: 0.15 },
-  Interview: { min: 10, max: 25, ratio: 0.12 },
-  Podcast:   { min: 15, max: 40, ratio: 0.12 },
-  YouTube:   { min: 15, max: 40, ratio: 0.12 },
+  Text:    { min: 8,  max: 20, ratio: 0.15 },
+  Podcast: { min: 15, max: 40, ratio: 0.12 },
+  YouTube: { min: 15, max: 40, ratio: 0.12 },
 };
 
 const PROMPT = (text, source = 'Article') => {
@@ -84,7 +83,7 @@ const LS = {
 
 export function Extract({ userId }) {
   const [text, setText] = useState(() => LS.get('ex_text', ""));
-  const [source, setSource] = useState(() => LS.get('ex_source', "Article"));
+  const [source, setSource] = useState(() => LS.get('ex_source', "Text"));
   const [extracted, setExtracted] = useState(() => LS.get('ex_words', []));
   const [added, setAdded] = useState(() => new Set(LS.get('ex_added', [])));
   const [loading, setLoading] = useState(false);
@@ -103,7 +102,7 @@ export function Extract({ userId }) {
   });
 
   const hasApiKey = !!GROQ_KEY;
-  const sources = ["Article", "Interview", "Podcast", "YouTube"];
+  const sources = ["Text", "Podcast", "YouTube"];
   const isUrl = /^https?:\/\/\S+$/.test(text.trim());
 
   const onExtract = async () => {
@@ -188,11 +187,11 @@ export function Extract({ userId }) {
             fontSize: 13, color: '#7a5800', lineHeight: 1.6,
           }}>
             <b>Paste the transcript, not the URL.</b> Wortgraph reads text — URLs contain no words to extract.
-            {(source === 'YouTube' || source === 'Podcast') && (
-              <div style={{ marginTop: 6, color: '#5a4200' }}>
-                <b>How to get a YouTube transcript:</b> open the video → click <b>···</b> below the title → <b>Show transcript</b> → select all → paste here.
-              </div>
-            )}
+            <div style={{ marginTop: 6, color: '#5a4200' }}>
+              {source === 'YouTube' && <span><b>YouTube:</b> open the video → click <b>···</b> below the title → <b>Show transcript</b> → select all → paste here.</span>}
+              {source === 'Podcast' && <span><b>Podcast:</b> find the episode page and copy the episode description or show notes, or use a transcription tool like <b>Whisper</b> or <b>otter.ai</b> to get the transcript.</span>}
+              {source === 'Text' && <span><b>Text:</b> open the article, select all text and paste it here.</span>}
+            </div>
           </div>
         )}
         <div className="source-chips">
