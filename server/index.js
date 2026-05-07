@@ -775,11 +775,12 @@ THE LEARNER'S GRAPH:
 - Twin pairs (high CO_OCCURS_WITH strength in deck): ${twins.length ? twins.join(', ') : 'none yet'}
 
 HOW TO ANSWER:
-- Reason in terms of clusters, bridges, and connections — not just isolated words.
-- When you make a recommendation, briefly state WHY using the graph data (e.g. "because it bridges 4 words you already know").
-- Be specific. Cite actual words from the data above.
-- Be encouraging and concise (under 150 words).
-- If asked something the graph can't answer, say so honestly.`;
+- Reply in 2-4 short bullet points (use • as the bullet character).
+- Wrap every German word you mention in **double asterisks** so it renders bold.
+- Each bullet: one concrete insight or action, max 20 words.
+- State WHY using the graph data (e.g. "bridges 4 known words").
+- Never write flowing paragraphs — bullets only.
+- If asked something the graph can't answer, say so in one bullet.`;
 
     const messages = [
       { role: 'system', content: context },

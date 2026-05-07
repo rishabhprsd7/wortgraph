@@ -3,6 +3,15 @@ import { useState, useEffect, useRef } from 'react';
 const API_URL = import.meta.env.VITE_API_URL || '';
 
 const CEFR_COLOR = { B1: '#7f77dd', B2: '#5b8ff9', C1: '#1d9e75', C2: '#e24b4a' };
+
+function renderBold(text, isUser) {
+  const parts = text.split(/\*\*([^*]+)\*\*/g);
+  return parts.map((p, i) =>
+    i % 2 === 1
+      ? <strong key={i} style={{ color: isUser ? '#fff' : 'var(--violet)', fontWeight: 700 }}>{p}</strong>
+      : p
+  );
+}
 const CEFR_ORDER = ['B1', 'B2', 'C1', 'C2'];
 
 function CefrBar({ distribution }) {
@@ -495,8 +504,8 @@ export function Agent() {
                   borderRadius: m.role === 'user' ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
                   background: m.role === 'user' ? 'var(--violet)' : 'var(--bg-3)',
                   color: m.role === 'user' ? '#fff' : 'var(--ink)',
-                  fontSize: 13, lineHeight: 1.5, whiteSpace: 'pre-wrap'
-                }}>{m.content}</div>
+                  fontSize: 13, lineHeight: 1.7, whiteSpace: 'pre-wrap'
+                }}>{renderBold(m.content, m.role === 'user')}</div>
               </div>
             ))}
             {chatLoading && (
