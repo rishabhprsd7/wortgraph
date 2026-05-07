@@ -374,13 +374,67 @@ app.get('/api/agent/insight', async (req, res) => {
         ORDER BY r.strength DESC
         LIMIT 5
       `,
+      studyPriority: `
+        // STUDY PRIORITY: score = graph_degree × (1 − retention/100).
+        // Words that connect to many others but you know poorly bubble to the top.
+        // Improving these has the highest multiplier effect on reading comprehension.
+        MATCH (u:User {id: $userId})-[r:ADDED]->(w:Word)
+        OPTIONAL MATCH (w)-[:CO_OCCURS_WITH]-(neighbor:Word)<-[:ADDED]-(u)
+        WITH w, coalesce(r.retention, 0) AS retention, count(DISTINCT neighbor) AS degree
+        WHERE degree > 0
+        WITH w, retention, degree,
+             degree * (1.0 - retention / 100.0) AS score
+        RETURN w.lemma AS word, w.article AS article, w.translation AS translation,
+               retention, degree, round(score * 10) / 10 AS score
+        ORDER BY score DESC
+        LIMIT 5
+      `,
+      morphologyFamilies: `
+        // GERMAN WORD FAMILIES: groups your deck words by shared prefix/suffix.
+        // Words in the same family share roots — learning one reinforces the others.
+        MATCH (u:User {id: $userId})-[:ADDED]->(w:Word)
+        WITH w,
+             CASE
+               WHEN w.lemma STARTS WITH 'ver' THEN 'ver-'
+               WHEN w.lemma STARTS WITH 'ent' THEN 'ent-'
+               WHEN w.lemma STARTS WITH 'be' THEN 'be-'
+               WHEN w.lemma STARTS WITH 'ge' THEN 'ge-'
+               WHEN w.lemma STARTS WITH 'er' THEN 'er-'
+               WHEN w.lemma ENDS WITH 'ung' THEN '-ung'
+               WHEN w.lemma ENDS WITH 'keit' THEN '-keit'
+               WHEN w.lemma ENDS WITH 'schaft' THEN '-schaft'
+               WHEN w.lemma ENDS WITH 'lich' THEN '-lich'
+               WHEN w.lemma ENDS WITH 'los' THEN '-los'
+               ELSE null
+             END AS family
+        WHERE family IS NOT NULL
+        WITH family, collect(w.lemma)[0..5] AS words, count(w) AS size
+        WHERE size >= 2
+        RETURN family, words, size
+        ORDER BY size DESC
+        LIMIT 6
+      `,
+      stuckWords: `
+        // STUCK WORDS: reviewed 3+ times but retention is still below 50%.
+        // These need active strategies — mnemonics, context sentences, or spaced review.
+        MATCH (u:User {id: $userId})-[r:ADDED]->(w:Word)
+        WHERE r.reviewCount >= 3 AND coalesce(r.retention, 0) < 50
+        RETURN w.lemma AS word, w.article AS article, w.translation AS translation,
+               w.example AS example,
+               r.retention AS retention, r.reviewCount AS reviewCount
+        ORDER BY r.reviewCount DESC, r.retention ASC
+        LIMIT 5
+      `,
     };
 
-    const [bridges, weakClusters, central, twins] = await Promise.all([
+    const [bridges, weakClusters, central, twins, priority, morphology, stuck] = await Promise.all([
       runQuery(cyphers.bridges, { userId }),
       runQuery(cyphers.weakClusters, { userId }),
       runQuery(cyphers.centralWeakWords, { userId }),
       runQuery(cyphers.twinWords, { userId }),
+      runQuery(cyphers.studyPriority, { userId }),
+      runQuery(cyphers.morphologyFamilies, { userId }),
+      runQuery(cyphers.stuckWords, { userId }),
     ]);
 
     const num = (v) => v?.toNumber?.() ?? v ?? 0;
@@ -431,6 +485,42 @@ app.get('/api/agent/insight', async (req, res) => {
           w1: r.get('w1'),
           w2: r.get('w2'),
           strength: num(r.get('strength')),
+        })),
+      },
+      studyPriority: {
+        title: 'Study priority',
+        reasoning: 'Ranked by graph impact: degree × (1 − retention). A highly-connected word you barely know outranks an isolated word at the same retention. Fix these first for the biggest reading comprehension gain.',
+        cypher: cyphers.studyPriority.trim(),
+        results: priority.map(r => ({
+          word: r.get('word'),
+          article: r.get('article'),
+          translation: r.get('translation'),
+          retention: num(r.get('retention')),
+          degree: num(r.get('degree')),
+          score: num(r.get('score')),
+        })),
+      },
+      morphologyFamilies: {
+        title: 'Word families',
+        reasoning: 'Your deck words grouped by German prefix/suffix. Words in the same family share a root meaning — learning one gives you a free head-start on the others.',
+        cypher: cyphers.morphologyFamilies.trim(),
+        results: morphology.map(r => ({
+          family: r.get('family'),
+          words: r.get('words'),
+          size: num(r.get('size')),
+        })),
+      },
+      stuckWords: {
+        title: 'Stuck words',
+        reasoning: 'Words you\'ve reviewed 3 or more times but retention is still below 50%. These resist rote repetition — try a mnemonic, write your own example sentence, or use them in conversation.',
+        cypher: cyphers.stuckWords.trim(),
+        results: stuck.map(r => ({
+          word: r.get('word'),
+          article: r.get('article'),
+          translation: r.get('translation'),
+          example: r.get('example'),
+          retention: num(r.get('retention')),
+          reviewCount: num(r.get('reviewCount')),
         })),
       },
     });

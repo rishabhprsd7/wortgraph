@@ -164,6 +164,95 @@ function TwinsPanel({ insight }) {
   );
 }
 
+function StudyPriorityPanel({ insight }) {
+  if (!insight?.results?.length) {
+    return <p style={{ fontSize: 13, color: 'var(--ink-3)', margin: 0 }}>No priority data yet — review some flashcards to generate scores.</p>;
+  }
+  const maxScore = Math.max(...insight.results.map(r => r.score), 1);
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {insight.results.map((r, i) => (
+        <div key={r.word} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <span style={{ fontSize: 14 }}>
+              <span style={{ color: 'var(--violet)', marginRight: 4 }}>{r.article}</span>
+              <b>{r.word}</b>
+              <span style={{ fontSize: 12, color: 'var(--ink-3)', fontStyle: 'italic', marginLeft: 6 }}>{r.translation}</span>
+            </span>
+            <span style={{ fontSize: 11, color: 'var(--ink-3)', flexShrink: 0 }}>score {r.score}</span>
+          </div>
+          <div style={{ height: 4, background: 'var(--bg-3)', borderRadius: 2, overflow: 'hidden' }}>
+            <div style={{ width: `${(r.score / maxScore) * 100}%`, height: '100%', background: i === 0 ? 'var(--red)' : 'var(--violet)' }} />
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--ink-4)' }}>
+            {r.retention}% retention · connects {r.degree} deck words
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MorphologyPanel({ insight }) {
+  if (!insight?.results?.length) {
+    return <p style={{ fontSize: 13, color: 'var(--ink-3)', margin: 0 }}>No word families found yet — add more vocabulary to discover shared roots.</p>;
+  }
+  const familyColors = {
+    'ver-': '#7f77dd', 'be-': '#5b8ff9', 'ge-': '#1d9e75',
+    'ent-': '#e24b4a', 'er-': '#d8a23d',
+    '-ung': '#9b6cf9', '-keit': '#3dbfbf', '-schaft': '#e87d3e',
+    '-lich': '#5a9e6f', '-los': '#b06fbd',
+  };
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {insight.results.map(r => {
+        const color = familyColors[r.family] || 'var(--violet)';
+        return (
+          <div key={r.family} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, padding: '1px 8px', borderRadius: 10, background: color + '22', color, fontFamily: "'JetBrains Mono', monospace" }}>{r.family}</span>
+              <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>{r.size} words</span>
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+              {(r.words || []).map(w => (
+                <span key={w} style={{ fontSize: 12, padding: '2px 8px', borderRadius: 8, background: 'var(--bg-3)', color: 'var(--ink-2)' }}>{w}</span>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function StuckWordsPanel({ insight }) {
+  if (!insight?.results?.length) {
+    return <p style={{ fontSize: 13, color: 'var(--green)', margin: 0 }}>No stuck words — great retention across the board!</p>;
+  }
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {insight.results.map(r => (
+        <div key={r.word} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <span style={{ fontSize: 14 }}>
+              <span style={{ color: 'var(--violet)', marginRight: 4 }}>{r.article}</span>
+              <b>{r.word}</b>
+              <span style={{ fontSize: 12, color: 'var(--ink-3)', fontStyle: 'italic', marginLeft: 6 }}>· {r.translation}</span>
+            </span>
+            <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
+              <span style={{ fontSize: 11, background: 'var(--red-soft)', color: 'var(--red)', padding: '1px 6px', borderRadius: 8 }}>{r.retention}%</span>
+              <span style={{ fontSize: 11, background: 'var(--bg-3)', color: 'var(--ink-3)', padding: '1px 6px', borderRadius: 8 }}>×{r.reviewCount} reviews</span>
+            </div>
+          </div>
+          {r.example && (
+            <div style={{ fontSize: 11, color: 'var(--ink-4)', fontStyle: 'italic', lineHeight: 1.4 }}>„{r.example}"</div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function Agent() {
   const [data, setData] = useState(null);
   const [insight, setInsight] = useState(null);
@@ -319,6 +408,15 @@ export function Agent() {
               </InsightCard>
               <InsightCard icon="🔗" insight={insight.twinWords}>
                 <TwinsPanel insight={insight.twinWords} />
+              </InsightCard>
+              <InsightCard icon="📈" insight={insight.studyPriority}>
+                <StudyPriorityPanel insight={insight.studyPriority} />
+              </InsightCard>
+              <InsightCard icon="🌿" insight={insight.morphologyFamilies}>
+                <MorphologyPanel insight={insight.morphologyFamilies} />
+              </InsightCard>
+              <InsightCard icon="🔁" insight={insight.stuckWords}>
+                <StuckWordsPanel insight={insight.stuckWords} />
               </InsightCard>
             </div>
           </div>
