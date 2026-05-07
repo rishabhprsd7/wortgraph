@@ -6,9 +6,17 @@ const GROQ_KEY = import.meta.env.VITE_GROQ_KEY;
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const API_URL = import.meta.env.VITE_API_URL || '';
 
-const PROMPT = (text) => {
+const LIMITS = {
+  Article:   { min: 8,  max: 20, ratio: 0.15 },
+  Interview: { min: 10, max: 25, ratio: 0.12 },
+  Podcast:   { min: 15, max: 40, ratio: 0.12 },
+  YouTube:   { min: 15, max: 40, ratio: 0.12 },
+};
+
+const PROMPT = (text, source = 'Article') => {
   const wordCount = text.trim().split(/\s+/).length;
-  const target = Math.min(20, Math.max(8, Math.round(wordCount * 0.15)));
+  const { min, max, ratio } = LIMITS[source] || LIMITS.Article;
+  const target = Math.min(max, Math.max(min, Math.round(wordCount * ratio)));
   return `You are a strict German language teacher selecting vocabulary for a B1+ learner.
 
 Extract exactly ${target} words from this text. Return ONLY a JSON array, no markdown, no explanation.
@@ -29,7 +37,7 @@ Text:
 ${text}`;
 };
 
-async function extractWithGroq(text) {
+async function extractWithGroq(text, source) {
   const res = await fetch(GROQ_URL, {
     method: 'POST',
     headers: {
@@ -38,9 +46,9 @@ async function extractWithGroq(text) {
     },
     body: JSON.stringify({
       model: 'llama-3.3-70b-versatile',
-      messages: [{ role: 'user', content: PROMPT(text) }],
+      messages: [{ role: 'user', content: PROMPT(text, source) }],
       temperature: 0.1,
-      max_tokens: 2048
+      max_tokens: 4096
     })
   });
   if (!res.ok) throw new Error(`Groq error ${res.status}: ${await res.text()}`);
@@ -107,7 +115,7 @@ export function Extract({ userId }) {
 
     try {
       const words = hasApiKey
-        ? await extractWithGroq(text)
+        ? await extractWithGroq(text, source)
         : fallbackExtract(text);
       saveExtracted(words);
     } catch (e) {
