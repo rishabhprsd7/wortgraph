@@ -83,6 +83,16 @@ async function initSchema() {
 // Health check
 app.get('/health', (_, res) => res.json({ ok: true }));
 
+// Wipe all data (seed script only)
+app.delete('/api/admin/clear', async (req, res) => {
+  try {
+    await runQuery('MATCH (n) DETACH DELETE n');
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // Save extracted words to the graph
 // POST /api/words  { words: [{article, word, cefr}], source: "Article", sourceText: "..." }
 app.post('/api/words', async (req, res) => {
