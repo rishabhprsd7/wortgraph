@@ -317,6 +317,8 @@ app.post('/api/embed/words', async (req, res) => {
         console.error(`Embed failed for ${lemma}:`, e.message);
         failed++;
       }
+      // Stay under free tier limit of 100 req/min
+      await new Promise(r => setTimeout(r, 700));
     }
     res.json({ embedded, failed, total: records.length });
   } catch (e) {
