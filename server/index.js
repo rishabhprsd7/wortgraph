@@ -695,11 +695,13 @@ app.get('/api/graph', async (req, res) => {
 app.post('/api/agent/chat', async (req, res) => {
   const { userId = 'default', message, history = [] } = req.body;
   const groqKey = process.env.GROQ_KEY;
-  if (!groqKey) return res.status(500).json({ error: 'GROQ_KEY not set on server' });
+  if (!groqKey) return res.status(503).json({ error: 'GROQ_KEY not configured on server' });
 
+  const num = (v) => v?.toNumber?.() ?? v ?? 0;
+
+  // Fetch Neo4j context — gracefully degrade if DB is unavailable
+  let words = [], weakWords = [], bridges = [], clusters = [], twins = [];
   try {
-    // Pull rich graph context from Neo4j: deck + weak words + bridge words + topic clusters + twin pairs
-    const num = (v) => v?.toNumber?.() ?? v ?? 0;
     const [wordRecords, weakRecords, bridgeRecords, clusterRecords, twinRecords] = await Promise.all([
       runQuery(`
         MATCH (u:User {id: $userId})-[r:ADDED]->(w:Word)
@@ -736,15 +738,19 @@ app.post('/api/agent/chat', async (req, res) => {
       `, { userId }),
     ]);
 
-    const words = wordRecords.map(r => ({
+    words = wordRecords.map(r => ({
       word: r.get('word'), article: r.get('article'), cefr: r.get('cefr'),
       retention: num(r.get('retention')), reviews: num(r.get('reviews'))
     }));
-    const weakWords = weakRecords.map(r => `${r.get('word')} (${num(r.get('retention'))}%)`);
-    const bridges = bridgeRecords.map(r => `${r.get('word')} [${r.get('cefr')}] connects ${num(r.get('deg'))} known words via ${(r.get('via') || []).join(', ')}`);
-    const clusters = clusterRecords.map(r => `${r.get('topic')}: ${num(r.get('size'))} words, avg retention ${Math.round(num(r.get('avgRet')))}%`);
-    const twins = twinRecords.map(r => `${r.get('w1')} ↔ ${r.get('w2')} (×${num(r.get('s'))})`);
+    weakWords = weakRecords.map(r => `${r.get('word')} (${num(r.get('retention'))}%)`);
+    bridges = bridgeRecords.map(r => `${r.get('word')} [${r.get('cefr')}] connects ${num(r.get('deg'))} known words via ${(r.get('via') || []).join(', ')}`);
+    clusters = clusterRecords.map(r => `${r.get('topic')}: ${num(r.get('size'))} words, avg retention ${Math.round(num(r.get('avgRet')))}%`);
+    twins = twinRecords.map(r => `${r.get('w1')} ↔ ${r.get('w2')} (×${num(r.get('s'))})`);
+  } catch (e) {
+    console.error('Chat: Neo4j context fetch failed (proceeding without graph context):', e.message);
+  }
 
+  try {
     const cefrDist = words.reduce((acc, w) => { acc[w.cefr] = (acc[w.cefr] || 0) + 1; return acc; }, {});
 
     const context = `You are an AI German language coach built into Wortgraph. You have direct access to the learner's Neo4j graph and you reason about it as a graph, not a list.
@@ -776,11 +782,14 @@ HOW TO ANSWER:
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${groqKey}` },
       body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages, temperature: 0.4 })
     });
-    if (!groqRes.ok) throw new Error(`Groq ${groqRes.status}: ${await groqRes.text()}`);
+    if (!groqRes.ok) {
+      const errText = await groqRes.text();
+      throw new Error(`Groq ${groqRes.status}: ${errText}`);
+    }
     const groqData = await groqRes.json();
     res.json({ reply: groqData.choices[0].message.content });
   } catch (e) {
-    console.error('Chat error:', e);
+    console.error('Chat error:', e.message);
     res.status(500).json({ error: e.message });
   }
 });

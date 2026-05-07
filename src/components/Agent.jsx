@@ -371,7 +371,10 @@ export function Agent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userMsg.content, history })
       });
-      if (!res.ok) throw new Error(`Server error ${res.status}`);
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({}));
+        throw new Error(error || `Server error ${res.status}`);
+      }
       const { reply } = await res.json();
       setMessages(prev => [...prev, { role: 'assistant', content: reply }]);
     } catch (e) {
