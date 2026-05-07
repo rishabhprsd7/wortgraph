@@ -28,8 +28,10 @@ INCLUDE:
 EXCLUDE — do not include any of these:
 - Proper nouns: place names (Berlin, Prenzlauer Berg, Tiergarten), people names, brand names
 - Obvious English loanwords already known to English speakers: Gym, Training, Marathon, Smoothie, Fitness, Studio, Podcast, etc.
-- A1/A2 basics: haben, sein, gehen, kommen, machen, sagen, gut, groß, klein, Tag, Stadt, etc.
+- A1/A2 basics including ALL common concrete nouns: Tisch, Stuhl, Haus, Auto, Buch, Schule, Kind, Mann, Frau, Zeit, Jahr, Land, Wasser, Essen, Arbeit, Geld, Weg, Hand, Kopf, Auge, etc.
+- Common verbs every beginner knows: haben, sein, werden, gehen, kommen, machen, sagen, sehen, wissen, geben, nehmen, stehen, liegen, etc.
 - The article must always be der/die/das — never ein/eine
+- CEFR must reflect genuine difficulty — if a native speaker would call it "Grundschulwortschatz" (primary school vocabulary), exclude it
 
 Text:
 ${text}`;
@@ -90,6 +92,7 @@ export function Extract({ userId }) {
   const [saved, setSaved] = useState(false);
   const [toast, setToast] = useState(null);
   const [error, setError] = useState(null);
+  const [extractionId, setExtractionId] = useState(0);
 
   const saveText = (v) => { setText(v); LS.set('ex_text', v); };
   const saveSource = (v) => { setSource(v); LS.set('ex_source', v); };
@@ -110,6 +113,7 @@ export function Extract({ userId }) {
   const onExtract = async () => {
     if (!text.trim() || isUrl) return;
     setLoading(true);
+    setExtractionId(id => id + 1);
     saveExtracted([]);
     saveAdded(() => new Set());
     setSaved(false);
@@ -240,7 +244,7 @@ export function Extract({ userId }) {
             </span>
           </div>
           <div className="er-body">
-            <div className="word-grid">
+            <div className="word-grid" key={extractionId}>
               {loading
                 ? Array.from({ length: 12 }).map((_, i) => (
                     <span key={i} className="word-chip skel" style={{ width: 80 + (i % 5) * 20 }}>placeholder</span>
