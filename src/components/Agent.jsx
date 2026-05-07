@@ -355,7 +355,7 @@ export function Agent() {
   ]);
   const [input, setInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
-  const chatEndRef = useRef(null);
+  const chatContainerRef = useRef(null);
 
   const sendMessage = async (override) => {
     const text = (override || input).trim();
@@ -378,7 +378,11 @@ export function Agent() {
       setMessages(prev => [...prev, { role: 'assistant', content: `Sorry, something went wrong: ${e.message}` }]);
     } finally {
       setChatLoading(false);
-      setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+      setTimeout(() => {
+        if (chatContainerRef.current) {
+          chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+        }
+      }, 50);
     }
   };
 
@@ -480,7 +484,7 @@ export function Agent() {
       <div className="panel">
         <div className="panel-h"><span className="t">Ask your coach</span><span className="s">Graph-aware · reads your full vocabulary graph</span></div>
         <div className="panel-b" style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-          <div style={{ maxHeight: 320, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: 12 }}>
+          <div ref={chatContainerRef} style={{ maxHeight: 320, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: 12 }}>
             {messages.map((m, i) => (
               <div key={i} style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
                 <div style={{
@@ -497,7 +501,6 @@ export function Agent() {
                 <div style={{ padding: '10px 14px', borderRadius: '12px 12px 12px 2px', background: 'var(--bg-3)', fontSize: 13, color: 'var(--ink-3)' }}>Querying graph…</div>
               </div>
             )}
-            <div ref={chatEndRef} />
           </div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
             {quickPrompts.map(p => (
