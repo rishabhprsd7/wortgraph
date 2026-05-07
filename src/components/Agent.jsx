@@ -415,7 +415,7 @@ export function Agent() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, padding: '4px 0' }}>
 
-      {/* Overview row */}
+      {/* 1. Overview — quick stats at a glance */}
       <div className="agent-section-label">Overview</div>
 
       <div className="panel" style={{ borderLeft: '3px solid var(--violet)' }}>
@@ -430,16 +430,10 @@ export function Agent() {
           {loading && <div style={{ color: 'var(--ink-3)', fontSize: 13 }}>Traversing your graph…</div>}
           {data && !loading && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <p style={{ fontSize: 14, color: 'var(--ink)', lineHeight: 1.6, margin: 0 }}>
-                {data.suggestion}
-              </p>
+              <p style={{ fontSize: 14, color: 'var(--ink)', lineHeight: 1.6, margin: 0 }}>{data.suggestion}</p>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>Focus level:</span>
-                <span style={{
-                  fontSize: 12, fontWeight: 600, padding: '2px 10px', borderRadius: 20,
-                  background: (CEFR_COLOR[data.focusLevel] || '#999') + '22',
-                  color: CEFR_COLOR[data.focusLevel] || '#999'
-                }}>
+                <span style={{ fontSize: 12, fontWeight: 600, padding: '2px 10px', borderRadius: 20, background: (CEFR_COLOR[data.focusLevel] || '#999') + '22', color: CEFR_COLOR[data.focusLevel] || '#999' }}>
                   {data.focusLevel}
                 </span>
               </div>
@@ -454,18 +448,16 @@ export function Agent() {
             <div className="panel-h"><span className="t">Vocabulary distribution</span><span className="s">{totalWords} words total</span></div>
             <div className="panel-b">
               {totalWords === 0
-                ? <p style={{ fontSize: 13, color: 'var(--ink-3)', margin: 0 }}>No words saved yet — extract and add some vocabulary first.</p>
-                : <CefrBar distribution={data.knownDistribution} />
-              }
+                ? <p style={{ fontSize: 13, color: 'var(--ink-3)', margin: 0 }}>No words saved yet.</p>
+                : <CefrBar distribution={data.knownDistribution} />}
             </div>
           </div>
           <div className="panel">
             <div className="panel-h"><span className="t">Review queue</span><span className="s">Low retention</span></div>
             <div className="panel-b">
               {data.reviewFirst.length === 0
-                ? <p style={{ fontSize: 13, color: 'var(--green)', margin: 0 }}>All caught up — no weak words right now.</p>
-                : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                ? <p style={{ fontSize: 13, color: 'var(--green)', margin: 0 }}>All caught up!</p>
+                : <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {data.reviewFirst.map(w => (
                       <div key={w} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{ fontSize: 14, fontWeight: 500 }}>{w}</span>
@@ -473,48 +465,17 @@ export function Agent() {
                       </div>
                     ))}
                   </div>
-                )
               }
             </div>
           </div>
         </div>
       )}
 
-      {/* Graph insights */}
-      {insight && !loading && (
-        <>
-          <div className="agent-section-label">Graph insights</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 14 }}>
-            <InsightCard icon="🌉" insight={insight.bridges}>
-              <BridgesPanel insight={insight.bridges} />
-            </InsightCard>
-            <InsightCard icon="🧩" insight={insight.weakClusters}>
-              <ClustersPanel insight={insight.weakClusters} />
-            </InsightCard>
-            <InsightCard icon="🎯" insight={insight.centralWeakWords}>
-              <CentralPanel insight={insight.centralWeakWords} />
-            </InsightCard>
-            <InsightCard icon="🔗" insight={insight.twinWords}>
-              <TwinsPanel insight={insight.twinWords} />
-            </InsightCard>
-            <InsightCard icon="📈" insight={insight.studyPriority}>
-              <StudyPriorityPanel insight={insight.studyPriority} />
-            </InsightCard>
-            <InsightCard icon="🌿" insight={insight.morphologyFamilies}>
-              <MorphologyPanel insight={insight.morphologyFamilies} />
-            </InsightCard>
-            <InsightCard icon="🔁" insight={insight.stuckWords}>
-              <StuckWordsPanel insight={insight.stuckWords} />
-            </InsightCard>
-          </div>
-        </>
-      )}
-
-      {/* Semantic search */}
+      {/* 2. Semantic search */}
       <div className="agent-section-label">Semantic search</div>
       <SemanticSearch />
 
-      {/* Chat */}
+      {/* 3. Coach chat */}
       <div className="agent-section-label">Coach</div>
       <div className="panel">
         <div className="panel-h"><span className="t">Ask your coach</span><span className="s">Graph-aware · reads your full vocabulary graph</span></div>
@@ -528,32 +489,22 @@ export function Agent() {
                   background: m.role === 'user' ? 'var(--violet)' : 'var(--bg-3)',
                   color: m.role === 'user' ? '#fff' : 'var(--ink)',
                   fontSize: 13, lineHeight: 1.5, whiteSpace: 'pre-wrap'
-                }}>
-                  {m.content}
-                </div>
+                }}>{m.content}</div>
               </div>
             ))}
             {chatLoading && (
               <div style={{ display: 'flex' }}>
-                <div style={{ padding: '10px 14px', borderRadius: '12px 12px 12px 2px', background: 'var(--bg-3)', fontSize: 13, color: 'var(--ink-3)' }}>
-                  Querying graph…
-                </div>
+                <div style={{ padding: '10px 14px', borderRadius: '12px 12px 12px 2px', background: 'var(--bg-3)', fontSize: 13, color: 'var(--ink-3)' }}>Querying graph…</div>
               </div>
             )}
             <div ref={chatEndRef} />
           </div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
             {quickPrompts.map(p => (
-              <button
-                key={p}
-                onClick={() => sendMessage(p)}
-                disabled={chatLoading}
-                style={{
-                  fontSize: 11, padding: '4px 10px', borderRadius: 14,
-                  background: 'var(--bg-2)', border: 'var(--hairline)',
-                  color: 'var(--ink-2)', cursor: 'pointer',
-                }}
-              >{p}</button>
+              <button key={p} onClick={() => sendMessage(p)} disabled={chatLoading}
+                style={{ fontSize: 11, padding: '4px 10px', borderRadius: 14, background: 'var(--bg-2)', border: 'var(--hairline)', color: 'var(--ink-2)', cursor: 'pointer' }}>
+                {p}
+              </button>
             ))}
           </div>
           <div style={{ display: 'flex', gap: 8, borderTop: 'var(--hairline)', paddingTop: 12 }}>
@@ -565,14 +516,28 @@ export function Agent() {
               onKeyDown={e => e.key === 'Enter' && sendMessage()}
               disabled={chatLoading}
             />
-            <button className="btn btn-primary btn-sm" onClick={() => sendMessage()} disabled={!input.trim() || chatLoading}>
-              Send
-            </button>
+            <button className="btn btn-primary btn-sm" onClick={() => sendMessage()} disabled={!input.trim() || chatLoading}>Send</button>
           </div>
         </div>
       </div>
 
-      {/* How it works */}
+      {/* 4. Graph insights — detailed, pushed to bottom */}
+      {insight && !loading && (
+        <>
+          <div className="agent-section-label">Graph insights</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 14 }}>
+            <InsightCard icon="🌉" insight={insight.bridges}><BridgesPanel insight={insight.bridges} /></InsightCard>
+            <InsightCard icon="🧩" insight={insight.weakClusters}><ClustersPanel insight={insight.weakClusters} /></InsightCard>
+            <InsightCard icon="🎯" insight={insight.centralWeakWords}><CentralPanel insight={insight.centralWeakWords} /></InsightCard>
+            <InsightCard icon="🔗" insight={insight.twinWords}><TwinsPanel insight={insight.twinWords} /></InsightCard>
+            <InsightCard icon="📈" insight={insight.studyPriority}><StudyPriorityPanel insight={insight.studyPriority} /></InsightCard>
+            <InsightCard icon="🌿" insight={insight.morphologyFamilies}><MorphologyPanel insight={insight.morphologyFamilies} /></InsightCard>
+            <InsightCard icon="🔁" insight={insight.stuckWords}><StuckWordsPanel insight={insight.stuckWords} /></InsightCard>
+          </div>
+        </>
+      )}
+
+      {/* 5. How it works */}
       <div className="panel" style={{ background: 'var(--bg-2)' }}>
         <div className="panel-h"><span className="t">How the agent thinks in graph</span></div>
         <div className="panel-b">
