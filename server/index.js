@@ -60,15 +60,17 @@ async function initSchema() {
     await runQuery('CREATE CONSTRAINT topic_unique IF NOT EXISTS FOR (t:Topic) REQUIRE t.name IS UNIQUE');
     await runQuery('CREATE CONSTRAINT user_unique IF NOT EXISTS FOR (u:User) REQUIRE u.id IS UNIQUE');
     if (GEMINI_KEY) {
+      // Drop and recreate to ensure correct dimensions (gemini-embedding-001 = 3072-dim)
+      await runQuery('DROP INDEX word_embeddings IF EXISTS');
       await runQuery(`
         CREATE VECTOR INDEX word_embeddings IF NOT EXISTS
         FOR (w:Word) ON (w.embedding)
         OPTIONS {indexConfig: {
-          \`vector.dimensions\`: 768,
+          \`vector.dimensions\`: 3072,
           \`vector.similarity_function\`: 'cosine'
         }}
       `);
-      console.log('Neo4j vector index ready');
+      console.log('Neo4j vector index ready (3072-dim)');
     }
     console.log('Neo4j schema ready');
   } catch (e) {
