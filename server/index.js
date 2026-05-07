@@ -93,6 +93,38 @@ app.delete('/api/admin/clear', async (req, res) => {
   }
 });
 
+// Insert bridge-word candidates: Word nodes with CO_OCCURS_WITH edges but no ADDED relationship.
+// These show up in the bridge-words insight for any user who knows the related words.
+app.post('/api/admin/seed-bridges', async (req, res) => {
+  const { bridges } = req.body;
+  if (!Array.isArray(bridges)) return res.status(400).json({ error: 'bridges array required' });
+  try {
+    let created = 0;
+    for (const b of bridges) {
+      await runQuery(`
+        MERGE (w:Word {lemma: $lemma})
+        ON CREATE SET w.article = $article, w.cefr = $cefr,
+                      w.translation = $translation, w.example = $example,
+                      w.exampleTranslation = $exampleTranslation
+      `, { lemma: b.word, article: b.article || '', cefr: b.cefr || 'B2',
+           translation: b.translation || '', example: b.example || '',
+           exampleTranslation: b.exampleTranslation || '' });
+      for (const related of (b.relatedTo || [])) {
+        await runQuery(`
+          MATCH (w:Word {lemma: $lemma}), (r:Word {lemma: $related})
+          MERGE (w)-[e:CO_OCCURS_WITH]-(r)
+          ON CREATE SET e.strength = 2, e.firstSeen = timestamp()
+          ON MATCH  SET e.strength = e.strength + 1
+        `, { lemma: b.word, related });
+      }
+      created++;
+    }
+    res.json({ created });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // Save extracted words to the graph
 // POST /api/words  { words: [{article, word, cefr}], source: "Article", sourceText: "..." }
 app.post('/api/words', async (req, res) => {

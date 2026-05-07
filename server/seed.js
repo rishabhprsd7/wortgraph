@@ -188,7 +188,43 @@ async function main() {
     console.log(`  ✓ ${batch.source}: ${result.saved} words, ${result.edges} co-occurrence edges`);
   }
 
-  // 3. Simulate reviews
+  // 3. Seed bridge-word candidates (in graph but not in user's deck)
+  console.log('\nSeeding bridge word candidates…');
+  const bridges = [
+    // Politik bridges — connect to Bundesregierung, Koalition, Verfassung, Abstimmung
+    { article: 'das', word: 'Wahlrecht', cefr: 'B2', translation: 'right to vote, electoral law', example: 'Das Wahlrecht ist ein unveräußerliches Grundrecht in jeder Demokratie.', exampleTranslation: 'The right to vote is an inalienable fundamental right in every democracy.', relatedTo: ['Bundesregierung', 'Koalition', 'Abstimmung'] },
+    { article: 'die', word: 'Bürgerbeteiligung', cefr: 'C1', translation: 'civic participation', example: 'Bürgerbeteiligung stärkt das Vertrauen in demokratische Prozesse.', exampleTranslation: 'Civic participation strengthens trust in democratic processes.', relatedTo: ['Verfassung', 'Abstimmung', 'Beschluss'] },
+    { article: 'die', word: 'Transparenz', cefr: 'B2', translation: 'transparency', example: 'Ohne Transparenz können Bürger politische Entscheidungen nicht nachvollziehen.', exampleTranslation: 'Without transparency, citizens cannot follow political decisions.', relatedTo: ['Gesetzgebung', 'Verordnung', 'Bundesregierung'] },
+
+    // Klima bridges — connect to Klimawandel, Emissionen, Energiewende
+    { article: 'das', word: 'Treibhausgas', cefr: 'B2', translation: 'greenhouse gas', example: 'Treibhausgase wie CO₂ sind Hauptursache der globalen Erwärmung.', exampleTranslation: 'Greenhouse gases like CO₂ are the main cause of global warming.', relatedTo: ['Klimawandel', 'Emissionen', 'Erderwärmung'] },
+    { article: 'die', word: 'Dürre', cefr: 'B2', translation: 'drought', example: 'Anhaltende Dürre bedroht die Landwirtschaft in vielen Regionen.', exampleTranslation: 'Prolonged drought threatens agriculture in many regions.', relatedTo: ['Klimawandel', 'Erderwärmung', 'Überflutung'] },
+    { article: 'die', word: 'Biodiversität', cefr: 'C1', translation: 'biodiversity', example: 'Biodiversität ist die Grundlage stabiler Ökosysteme weltweit.', exampleTranslation: 'Biodiversity is the foundation of stable ecosystems worldwide.', relatedTo: ['Artenschutz', 'Abholzung', 'Nachhaltigkeit'] },
+
+    // Wirtschaft bridges — connect to Beschäftigung, Wettbewerb, Finanzierung
+    { article: 'die', word: 'Inflation', cefr: 'B2', translation: 'inflation', example: 'Hohe Inflation mindert die Kaufkraft der Bevölkerung deutlich.', exampleTranslation: 'High inflation significantly reduces the purchasing power of the population.', relatedTo: ['Wirtschaftswachstum', 'Verschuldung', 'Besteuerung'] },
+    { article: 'die', word: 'Arbeitslosigkeit', cefr: 'B2', translation: 'unemployment', example: 'Steigende Arbeitslosigkeit belastet die sozialen Sicherungssysteme.', exampleTranslation: 'Rising unemployment puts a strain on social security systems.', relatedTo: ['Beschäftigung', 'Entwicklung', 'Finanzierung'] },
+    { article: 'der', word: 'Haushalt', cefr: 'B1', translation: 'budget, household', example: 'Der staatliche Haushalt muss Einnahmen und Ausgaben in Einklang bringen.', exampleTranslation: 'The state budget must balance revenue and expenditure.', relatedTo: ['Verschuldung', 'Finanzierung', 'Besteuerung'] },
+
+    // Gesellschaft bridges — connect to Gemeinschaft, Vielfalt, Bevölkerung
+    { article: 'die', word: 'Solidarität', cefr: 'B2', translation: 'solidarity', example: 'Solidarität bedeutet, füreinander einzustehen — auch in schwierigen Zeiten.', exampleTranslation: 'Solidarity means standing up for each other — even in difficult times.', relatedTo: ['Gemeinschaft', 'Zusammenhalt', 'Bevölkerung'] },
+    { article: 'die', word: 'Inklusion', cefr: 'B2', translation: 'inclusion', example: 'Inklusion ermöglicht Menschen mit Behinderungen gleichberechtigte Teilhabe.', exampleTranslation: 'Inclusion enables people with disabilities to participate on equal terms.', relatedTo: ['Gleichberechtigung', 'Benachteiligung', 'Eingliederung'] },
+    { article: 'die', word: 'Partizipation', cefr: 'C1', translation: 'participation', example: 'Politische Partizipation ist Voraussetzung einer lebendigen Demokratie.', exampleTranslation: 'Political participation is a prerequisite for a vibrant democracy.', relatedTo: ['Gemeinschaft', 'Vielfalt', 'Verständigung'] },
+
+    // Technologie bridges — connect to Digitalisierung, Vernetzung, Sicherheit
+    { article: 'der', word: 'Datenschutz', cefr: 'B2', translation: 'data protection', example: 'Datenschutz schützt persönliche Daten vor Missbrauch und unerlaubtem Zugriff.', exampleTranslation: 'Data protection safeguards personal data from misuse and unauthorised access.', relatedTo: ['Verschlüsselung', 'Sicherheit', 'Vernetzung'] },
+    { article: 'die', word: 'Automatisierung', cefr: 'B2', translation: 'automation', example: 'Automatisierung in der Industrie verändert die Anforderungen an Arbeitnehmer.', exampleTranslation: 'Automation in industry is changing the demands placed on employees.', relatedTo: ['Digitalisierung', 'Entwicklung', 'Vernetzung'] },
+    { article: 'der', word: 'Algorithmus', cefr: 'C1', translation: 'algorithm', example: 'Algorithmen bestimmen immer mehr, welche Inhalte wir im Netz sehen.', exampleTranslation: 'Algorithms increasingly determine what content we see online.', relatedTo: ['Digitalisierung', 'Verbreitung', 'Benutzeroberfläche'] },
+
+    // Gesundheit bridges — connect to Behandlung, Vorbeugung, Forschung
+    { article: 'die', word: 'Impfung', cefr: 'B1', translation: 'vaccination', example: 'Impfung ist eine der wirksamsten Maßnahmen zur Vorbeugung von Infektionskrankheiten.', exampleTranslation: 'Vaccination is one of the most effective measures for preventing infectious diseases.', relatedTo: ['Vorbeugung', 'Behandlung', 'Forschung'] },
+    { article: 'das', word: 'Wohlbefinden', cefr: 'B2', translation: 'wellbeing', example: 'Körperliches und seelisches Wohlbefinden sind eng miteinander verbunden.', exampleTranslation: 'Physical and mental wellbeing are closely linked.', relatedTo: ['Erholung', 'Belastung', 'Betreuung'] },
+    { article: 'die', word: 'Prävention', cefr: 'B2', translation: 'prevention', example: 'Prävention ist günstiger als Behandlung — und schützt mehr Menschen.', exampleTranslation: 'Prevention is cheaper than treatment — and protects more people.', relatedTo: ['Vorbeugung', 'Versorgung', 'Verantwortung'] },
+  ];
+  const bridgeResult = await post('/api/admin/seed-bridges', { bridges });
+  console.log(`  ✓ ${bridgeResult.created} bridge word candidates added`);
+
+  // 4. Simulate reviews
   console.log('\nSimulating reviews…');
   for (const [word, sequence] of Object.entries(reviewScripts)) {
     if (sequence.length === 0) continue;
@@ -200,7 +236,7 @@ async function main() {
     console.log(`  ${tag} ${word}: ${sequence.length} reviews → ${pct}%`);
   }
 
-  // 4. Embed with Gemini
+  // 5. Embed with Gemini
   console.log('\nEmbedding words with Gemini…');
   try {
     const embedRes = await fetch(`${API}/api/embed/words`, { method: 'POST' });

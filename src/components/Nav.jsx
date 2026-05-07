@@ -19,7 +19,8 @@ export function Nav({ route, setRoute, dark, streak }) {
   const links = [
     { id: "learn", label: "Learn" },
     { id: "explore", label: "Explore" },
-    { id: "progress", label: "Progress" }
+    { id: "progress", label: "Progress" },
+    { id: "agent", label: "Agent" },
   ];
   return (
     <nav className={`nav${dark ? " dark" : ""}`}>
