@@ -4,6 +4,38 @@
 
 Wortgraph is a vocabulary learning app that treats your German words as a **graph**, not a list. Every word you save is linked to others it appeared with (CO_OCCURS_WITH), grouped into topic clusters (BELONGS_TO), and scored by how well you know it. The result: an AI coach that reasons about *connections* — not just isolated words.
 
+**Live demo:** https://wortgraph-1.onrender.com · sign in with any name, or click "Try with demo data"
+
+---
+
+## For Judges — start here
+
+| What you want to see | File | What's there |
+|---|---|---|
+| Neo4j connection + graph schema | [`server/db.js`](server/db.js) | Driver setup, `runQuery`, Gemini embeddings, schema constraints + vector index |
+| All 7 Cypher insight queries | [`server/cypher.js`](server/cypher.js) | Bridge words, weak clusters, study priority, twin pairs, word families, stuck words — each with an explanation comment |
+| AI Coach system prompt | [`server/cypher.js`](server/cypher.js) → `buildSystemPrompt()` | The LLM prompt that injects live graph context |
+| API routes | [`server/index.js`](server/index.js) | All Express routes — clean, one concern per route |
+| Vocab extraction (Groq AI) | [`src/components/Extract.jsx`](src/components/Extract.jsx) | Paste German text → LLM extracts B1+ vocabulary as JSON |
+| AI Coach frontend | [`src/components/Agent.jsx`](src/components/Agent.jsx) | Insight cards + conversational chat |
+| Demo dataset | [`server/seed.js`](server/seed.js) | 48 words across 6 topics + 18 bridge candidates |
+
+### The "Aha!" query — Bridge Words
+
+```cypher
+// Words NOT in your deck that connect ≥2 clusters you already know.
+// e.g. "Beschluss" bridges Politik + Wirtschaft — learning one word strengthens two clusters.
+MATCH (u:User {id: $userId})-[:ADDED]->(known:Word)
+MATCH (known)-[r:CO_OCCURS_WITH]-(candidate:Word)
+WHERE NOT EXISTS { (u)-[:ADDED]->(candidate) }
+WITH candidate, count(DISTINCT known) AS bridgeDegree, sum(r.strength) AS totalStrength,
+     collect(DISTINCT known.lemma)[0..5] AS connectedTo
+WHERE bridgeDegree >= 2
+RETURN candidate.lemma AS word, candidate.cefr AS cefr,
+       bridgeDegree, totalStrength, connectedTo
+ORDER BY bridgeDegree DESC, totalStrength DESC LIMIT 5
+```
+
 ---
 
 ## What makes it different
