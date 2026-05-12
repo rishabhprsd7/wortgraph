@@ -4,6 +4,26 @@ import { Flashcards } from './Flashcards';
 import { GrammarPanel } from './GrammarPanel';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
+const GROQ_KEY = import.meta.env.VITE_GROQ_KEY;
+const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
+
+async function generateGrammarForSource(snippet) {
+  const prompt = `Identify 3-5 important grammar patterns in this German text that a B1+ learner should notice. Return ONLY a JSON array, no markdown, no explanation.
+Each item: {"topic":"short name of the grammar pattern","form":"the exact grammatical form name","highlight":"the exact word or short phrase from the example sentence that shows the pattern — 1-4 words maximum","example":"verbatim sentence from the text that demonstrates it","explanation":"one punchy sentence pointing at what the highlighted words are DOING in this specific sentence"}
+
+Text:
+${snippet}`;
+  const res = await fetch(GROQ_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEY}` },
+    body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: [{ role: 'user', content: prompt }], temperature: 0.2, max_tokens: 1024 })
+  });
+  if (!res.ok) throw new Error(`Groq ${res.status}`);
+  const data = await res.json();
+  const raw = data.choices[0].message.content.trim();
+  const match = raw.match(/\[[\s\S]*\]/);
+  return JSON.parse(match ? match[0] : raw);
+}
 
 const CEFR_COLOR = { B1: '#7f77dd', B2: '#5b8ff9', C1: '#1d9e75', C2: '#e24b4a' };
 
@@ -154,6 +174,7 @@ export function Learn({ userId }) {
   const [view, setView] = useState('list');
   const [loadingWords, setLoadingWords] = useState(true);
   const [textSourceId, setTextSourceId] = useState(null);
+  const [generatingGrammar, setGeneratingGrammar] = useState(false);
 
   useEffect(() => {
     if (!API_URL) return;
@@ -182,12 +203,31 @@ export function Learn({ userId }) {
 
   const totalWords = words.length;
   const textSource = textSourceId ? sources.find(s => s.id === textSourceId) : null;
+  const currentSource = selectedSource ? sources.find(s => s.id === selectedSource) : null;
+
+  const handleGenerateGrammar = async () => {
+    if (!currentSource?.snippet || generatingGrammar) return;
+    setGeneratingGrammar(true);
+    try {
+      const topics = await generateGrammarForSource(currentSource.snippet);
+      await fetch(`${API_URL}/api/sources/${encodeURIComponent(currentSource.id)}/grammar`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ grammarTopics: topics }),
+      });
+      setSources(prev => prev.map(s => s.id === currentSource.id ? { ...s, grammarTopics: topics } : s));
+    } catch (e) {
+      console.error('Grammar generation failed:', e);
+    } finally {
+      setGeneratingGrammar(false);
+    }
+  };
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 20, alignItems: 'start' }}>
+    <div className="learn-grid">
 
-      {/* Source sidebar */}
-      <div style={{ position: 'sticky', top: 24 }}>
+      {/* Source sidebar — desktop only */}
+      <div className="desktop-only" style={{ position: 'sticky', top: 24 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8, paddingLeft: 4 }}>
           Sources
         </div>
@@ -223,6 +263,22 @@ export function Learn({ userId }) {
 
       {/* Main content */}
       <div>
+        {/* Mobile source picker */}
+        <div className="mobile-only mobile-source-bar">
+          <select
+            className="mobile-source-select"
+            value={selectedSource || ''}
+            onChange={e => setSelectedSource(e.target.value || null)}
+          >
+            <option value="">All words ({sources.reduce((a, s) => a + s.wordCount, 0)}w)</option>
+            {sources.map(s => (
+              <option key={s.id} value={s.id}>
+                {s.type} · {s.snippet?.slice(0, 30)}…
+              </option>
+            ))}
+          </select>
+        </div>
+
         {/* Text panel */}
         {textSource && (
           <TextPanel source={textSource} onClose={() => setTextSourceId(null)} />
@@ -256,16 +312,29 @@ export function Learn({ userId }) {
             ? <WordListView words={words} />
             : view === 'grammar'
               ? (() => {
-                  const topics = selectedSource ? (sources.find(s => s.id === selectedSource)?.grammarTopics ?? []) : [];
-                  return topics.length > 0
-                    ? <GrammarPanel grammarTopics={topics} />
-                    : (
-                      <div style={{ textAlign: 'center', padding: 60, color: 'var(--ink-3)', fontSize: 14 }}>
-                        {selectedSource
-                          ? 'No grammar topics for this source — it may have been added before this feature launched. Re-extract the text to get grammar highlights.'
-                          : 'Select a specific source to see its grammar highlights.'}
+                  const topics = currentSource?.grammarTopics ?? [];
+                  if (!selectedSource) return (
+                    <div style={{ textAlign: 'center', padding: 60, color: 'var(--ink-3)', fontSize: 14 }}>
+                      Select a specific source to see its grammar highlights.
+                    </div>
+                  );
+                  if (topics.length > 0) return <GrammarPanel grammarTopics={topics} />;
+                  return (
+                    <div style={{ textAlign: 'center', padding: '48px 24px' }}>
+                      <div style={{ fontSize: 14, color: 'var(--ink-3)', marginBottom: 20 }}>
+                        No grammar topics yet for this source.
                       </div>
-                    );
+                      {GROQ_KEY && currentSource?.snippet && (
+                        <button
+                          className="btn btn-primary btn-sm"
+                          onClick={handleGenerateGrammar}
+                          disabled={generatingGrammar}
+                        >
+                          {generatingGrammar ? 'Generating…' : 'Generate grammar highlights'}
+                        </button>
+                      )}
+                    </div>
+                  );
                 })()
               : <Flashcards
                   words={words}

@@ -3,6 +3,15 @@ import { useState } from 'react';
 const GROQ_KEY = import.meta.env.VITE_GROQ_KEY;
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
+async function withRetry(fn, attempts = 3) {
+  for (let i = 0; i < attempts; i++) {
+    try { return await fn(); } catch (e) {
+      if (i === attempts - 1) throw e;
+      await new Promise(r => setTimeout(r, 800 * (i + 1)));
+    }
+  }
+}
+
 async function expandGrammarTopic(topic, form, highlight, example) {
   const prompt = `You are a German grammar teacher explaining to a B1 learner who does NOT know German grammar terms.
 
@@ -65,12 +74,17 @@ export function GrammarPanel({ grammarTopics = [], compact = false }) {
     if (!expansions[i]) {
       setExpansions(prev => ({ ...prev, [i]: { loading: true } }));
       try {
-        const result = await expandGrammarTopic(g.topic, g.form, g.highlight, g.example);
+        const result = await withRetry(() => expandGrammarTopic(g.topic, g.form, g.highlight, g.example));
         setExpansions(prev => ({ ...prev, [i]: result }));
-      } catch {
-        setExpansions(prev => ({ ...prev, [i]: { error: true } }));
+      } catch (e) {
+        setExpansions(prev => ({ ...prev, [i]: { error: true, msg: e.message } }));
       }
     }
+  };
+
+  const handleRetry = (i, g) => {
+    setExpansions(prev => { const n = { ...prev }; delete n[i]; return n; });
+    handleExpand(i, g);
   };
 
   return (
@@ -131,7 +145,10 @@ export function GrammarPanel({ grammarTopics = [], compact = false }) {
                   <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>Breaking it down…</div>
                 )}
                 {exp?.error && (
-                  <div style={{ fontSize: 12, color: 'var(--red)' }}>Couldn't load — try again.</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontSize: 12, color: 'var(--red)' }}>Couldn't load.</span>
+                    <button onClick={() => handleRetry(i, g)} style={{ fontSize: 11, padding: '2px 8px', borderRadius: 6, border: '1px solid var(--red)', background: 'none', color: 'var(--red)', cursor: 'pointer' }}>Retry</button>
+                  </div>
                 )}
                 {exp && !exp.loading && !exp.error && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

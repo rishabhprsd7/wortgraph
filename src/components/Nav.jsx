@@ -144,7 +144,7 @@ export function Nav({ route, setRoute, dark, userId, onSwitchUser, onTryDemo }) 
         ))}
       </div>
       <div className="nav-right">
-        <span className="streak">
+        <span className="streak" title={streak > 0 ? `${streak}-day streak` : 'Start streak'}>
           {days.map((d, i) => (
             <span key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
               <span style={{ fontSize: 9, fontWeight: 600, color: d.active ? (dark ? '#c4bff5' : 'var(--violet)') : (dark ? 'rgba(255,255,255,0.25)' : 'var(--ink-4)') }}>

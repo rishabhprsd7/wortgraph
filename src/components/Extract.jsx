@@ -46,6 +46,15 @@ Text:
 ${text}`;
 };
 
+async function withRetry(fn, attempts = 3) {
+  for (let i = 0; i < attempts; i++) {
+    try { return await fn(); } catch (e) {
+      if (i === attempts - 1) throw e;
+      await new Promise(r => setTimeout(r, 800 * (i + 1)));
+    }
+  }
+}
+
 function parseJsonArray(raw) {
   const stripped = raw.replace(/^```json\n?/, '').replace(/^```\n?/, '').replace(/\n?```$/, '').trim();
   // Extract the outermost [...] in case the model adds trailing text
@@ -155,8 +164,8 @@ export function Extract({ userId }) {
     try {
       if (hasApiKey) {
         const [words, grammar] = await Promise.all([
-          extractWithGroq(text, source),
-          extractGrammarTopics(text).catch(() => []),
+          withRetry(() => extractWithGroq(text, source)),
+          withRetry(() => extractGrammarTopics(text)).catch(() => []),
         ]);
         saveExtracted(words);
         saveGrammar(grammar);

@@ -210,6 +210,21 @@ app.get('/api/sources', async (req, res) => {
   }
 });
 
+// Update grammar topics for a source (for sources added before grammar extraction)
+app.patch('/api/sources/:id/grammar', async (req, res) => {
+  const { id } = req.params;
+  const { grammarTopics = [] } = req.body;
+  try {
+    await runQuery(
+      'MATCH (s:Source {id: $id}) SET s.grammarTopics = $grammarJson',
+      { id, grammarJson: JSON.stringify(grammarTopics) }
+    );
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── Reviews & retention ───────────────────────────────────────────────────────
 
 // Update ADDED relationship: +5 retention on correct, -10 on incorrect (floor 0, ceil 100).
