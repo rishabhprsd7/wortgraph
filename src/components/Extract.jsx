@@ -13,7 +13,7 @@ const LIMITS = {
 
 const GRAMMAR_PROMPT = (text) =>
   `Identify 3-5 important grammar patterns in this German text that a B1+ learner should notice. Return ONLY a JSON array, no markdown, no explanation.
-Each item: {"topic":"short name of the grammar pattern","example":"verbatim sentence from the text that demonstrates it","explanation":"one sentence: what this pattern is and why it matters"}
+Each item: {"topic":"short name of the grammar pattern","form":"the exact grammatical form name (e.g. Präteritum Passiv, Konjunktiv II Vergangenheit, Relativsatz mit Dativ)","highlight":"the exact word or short phrase from the example sentence that shows the pattern — 1-4 words maximum","example":"verbatim sentence from the text that demonstrates it","explanation":"one sentence: what this pattern is and why it matters for learners"}
 
 Focus on patterns like: Konjunktiv II, Passiv mit werden, Relativsatz, Genitiv, Modalverben, trennbare Verben, Adjektivdeklination, Nebensatz, indirekte Rede, Partizip II als Adjektiv.
 
