@@ -7,22 +7,19 @@ const GROQ_KEY = import.meta.env.VITE_GROQ_KEY;
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
 async function expandGrammarTopic(topic, form, highlight, example) {
-  const prompt = `You are a concise German grammar teacher for a B1+ learner.
+  const prompt = `You are a German grammar teacher. A B1+ learner is looking at this sentence and wants to understand why "${highlight}" makes it "${topic}".
 
-Grammar topic: ${topic}
-Specific form: ${form || topic}
-Key phrase from text: "${highlight}"
-Example sentence: "${example}"
+Sentence: "${example}"
+Key phrase: "${highlight}"
+Pattern: ${form || topic}
 
-Provide a response in this exact JSON format (no markdown):
+Break it down word by word. Return ONLY this JSON (no markdown):
 {
-  "whyItMatters": "one sentence on when/why a learner needs this pattern",
-  "formation": "the rule in plain English, max 2 sentences",
-  "examples": [
-    {"de": "German sentence", "en": "English translation"},
-    {"de": "German sentence", "en": "English translation"}
+  "breakdown": [
+    {"part": "exact word or morpheme from the key phrase", "role": "what it is and what job it does HERE in this sentence — be specific, max 10 words"}
   ],
-  "commonMistake": "one concrete mistake learners make with this pattern and the correction"
+  "pattern": "the rule as a formula anchored to this sentence, e.g. 'wurde + [Partizip II] = passive past: focus on what happened, not who did it'",
+  "oneMore": {"de": "one new German sentence using the same pattern", "en": "English translation"}
 }`;
 
   const res = await fetch(GROQ_URL, {
@@ -465,36 +462,37 @@ export function Flashcards({ words: propWords, userId, sourceText, grammarTopics
                           <div style={{ fontSize: 12, color: 'var(--red)' }}>Couldn't load — try again.</div>
                         )}
                         {exp && !exp.loading && !exp.error && (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                            {exp.whyItMatters && (
-                              <div>
-                                <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--violet)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Why it matters</div>
-                                <div style={{ fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.6 }}>{exp.whyItMatters}</div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                            {/* Word-by-word breakdown */}
+                            {exp.breakdown?.length > 0 && (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                {exp.breakdown.map((b, j) => (
+                                  <div key={j} style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                                    <span style={{
+                                      fontSize: 12, fontWeight: 700, color: 'var(--violet)',
+                                      background: 'rgba(127,119,221,0.15)', borderRadius: 4,
+                                      padding: '1px 7px', whiteSpace: 'nowrap', flexShrink: 0,
+                                    }}>{b.part}</span>
+                                    <span style={{ fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.5 }}>{b.role}</span>
+                                  </div>
+                                ))}
                               </div>
                             )}
-                            {exp.formation && (
-                              <div>
-                                <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--violet)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Formation</div>
-                                <div style={{ fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.6 }}>{exp.formation}</div>
+                            {/* Pattern rule */}
+                            {exp.pattern && (
+                              <div style={{
+                                padding: '7px 10px', borderRadius: 6,
+                                background: 'rgba(127,119,221,0.1)', border: '0.5px solid var(--violet-line)',
+                                fontSize: 11, color: 'var(--violet)', fontFamily: 'monospace', lineHeight: 1.5,
+                              }}>
+                                {exp.pattern}
                               </div>
                             )}
-                            {exp.examples?.length > 0 && (
-                              <div>
-                                <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--violet)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>More examples</div>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                  {exp.examples.map((ex, j) => (
-                                    <div key={j} style={{ padding: '8px 10px', borderRadius: 6, background: 'rgba(255,255,255,0.6)', border: '0.5px solid var(--violet-line)' }}>
-                                      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)', lineHeight: 1.5 }}>{ex.de}</div>
-                                      <div style={{ fontSize: 11, color: 'var(--ink-3)', fontStyle: 'italic', lineHeight: 1.4 }}>{ex.en}</div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                            {exp.commonMistake && (
-                              <div style={{ padding: '8px 10px', borderRadius: 6, background: 'rgba(226,75,74,0.07)', border: '0.5px solid rgba(226,75,74,0.2)' }}>
-                                <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--red)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Common mistake</div>
-                                <div style={{ fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.6 }}>{exp.commonMistake}</div>
+                            {/* One more example */}
+                            {exp.oneMore && (
+                              <div style={{ padding: '8px 10px', borderRadius: 6, background: 'rgba(255,255,255,0.6)', border: '0.5px solid var(--violet-line)' }}>
+                                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)', lineHeight: 1.5 }}>{exp.oneMore.de}</div>
+                                <div style={{ fontSize: 11, color: 'var(--ink-3)', fontStyle: 'italic' }}>{exp.oneMore.en}</div>
                               </div>
                             )}
                           </div>
