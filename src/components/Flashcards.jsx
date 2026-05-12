@@ -49,7 +49,7 @@ function buildQueue(cards) {
   return cards.map(c => ({ card: c, isReview: false, prevResult: null }));
 }
 
-export function Flashcards({ words: propWords, userId, sourceText }) {
+export function Flashcards({ words: propWords, userId, sourceText, grammarTopics = [] }) {
   const [cards, setCards] = useState([]);
   const [loading, setLoading] = useState(!propWords);
   // deck = { queue: [{card, isReview, prevResult}], idx, done }
@@ -57,6 +57,7 @@ export function Flashcards({ words: propWords, userId, sourceText }) {
   const [flipped, setFlipped] = useState(false);
   const [stats, setStats] = useState({ know: 0, no: 0 });
   const [showSourceText, setShowSourceText] = useState(false);
+  const [showGrammar, setShowGrammar] = useState(true);
   // Track unique words the user didn't know (for end-of-session summary)
   const [newWords, setNewWords] = useState(new Set());
 
@@ -323,6 +324,47 @@ export function Flashcards({ words: propWords, userId, sourceText }) {
         <span>Don't know: <b style={{ color: 'var(--red)' }}>{stats.no}</b></span>
         <span>Know it: <b style={{ color: 'var(--green)' }}>{stats.know}</b></span>
       </div>
+
+      {grammarTopics.length > 0 && (
+        <div style={{ marginTop: 28, borderTop: '1px solid var(--line)', paddingTop: 20 }}>
+          <button
+            onClick={() => setShowGrammar(s => !s)}
+            style={{
+              width: '100%', padding: '10px 14px', borderRadius: 8,
+              background: 'var(--violet-soft)', border: '0.5px solid var(--violet-line)',
+              color: 'var(--violet)', fontWeight: 600, fontSize: 13, cursor: 'pointer',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            }}
+          >
+            <span>Grammar highlights</span>
+            <span style={{ fontSize: 11, opacity: 0.7 }}>{showGrammar ? '▲ hide' : '▼ show'}</span>
+          </button>
+          {showGrammar && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+              {grammarTopics.map((g, i) => (
+                <div key={i} style={{
+                  padding: '12px 14px', borderRadius: 8,
+                  background: 'var(--bg)', border: '0.5px solid var(--line)',
+                }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--violet)', marginBottom: 4 }}>
+                    {g.topic}
+                  </div>
+                  {g.example && (
+                    <div style={{ fontSize: 12, color: 'var(--ink-2)', fontStyle: 'italic', marginBottom: 4, lineHeight: 1.5 }}>
+                      „{g.example}"
+                    </div>
+                  )}
+                  {g.explanation && (
+                    <div style={{ fontSize: 11, color: 'var(--ink-3)', lineHeight: 1.5 }}>
+                      {g.explanation}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

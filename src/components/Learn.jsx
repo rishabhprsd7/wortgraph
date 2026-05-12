@@ -257,6 +257,7 @@ export function Learn({ userId }) {
                 words={words}
                 userId={userId}
                 sourceText={selectedSource ? sources.find(s => s.id === selectedSource)?.snippet : undefined}
+                grammarTopics={selectedSource ? (sources.find(s => s.id === selectedSource)?.grammarTopics ?? []) : []}
               />
         }
       </div>

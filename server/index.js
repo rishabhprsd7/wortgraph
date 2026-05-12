@@ -94,7 +94,7 @@ app.post('/api/admin/seed-bridges', async (req, res) => {
 //   Word -[:BELONGS_TO]-> Topic
 //   Word -[:CO_OCCURS_WITH {strength}]- Word  (all pairs from this source)
 app.post('/api/words', async (req, res) => {
-  const { words, source = 'Unknown', snippet = '', userId = 'default' } = req.body;
+  const { words, source = 'Unknown', snippet = '', userId = 'default', grammarTopics = [] } = req.body;
   if (!Array.isArray(words) || words.length === 0)
     return res.status(400).json({ error: 'words array required' });
 
@@ -102,9 +102,10 @@ app.post('/api/words', async (req, res) => {
     await runQuery('MERGE (u:User {id: $userId}) ON CREATE SET u.createdAt = timestamp()', { userId });
 
     const sourceId = `${source}-${Date.now()}`;
+    const grammarJson = JSON.stringify(grammarTopics);
     await runQuery(
-      'MERGE (s:Source {id: $sourceId}) ON CREATE SET s.type = $type, s.snippet = $snippet, s.addedAt = timestamp()',
-      { sourceId, type: source, snippet }
+      'MERGE (s:Source {id: $sourceId}) ON CREATE SET s.type = $type, s.snippet = $snippet, s.grammarTopics = $grammarJson, s.addedAt = timestamp()',
+      { sourceId, type: source, snippet, grammarJson }
     );
     await runQuery('MERGE (t:Topic {name: $topic}) ON CREATE SET t.createdAt = timestamp()', { topic: source });
 
@@ -192,14 +193,18 @@ app.get('/api/sources', async (req, res) => {
   try {
     const records = await runQuery(`
       MATCH (u:User {id: $userId})-[:ADDED]->(w:Word)-[:EXTRACTED_FROM]->(s:Source)
-      RETURN s.id AS id, s.type AS type, s.snippet AS snippet, s.addedAt AS addedAt,
-             count(DISTINCT w) AS wordCount
+      RETURN s.id AS id, s.type AS type, s.snippet AS snippet, s.grammarTopics AS grammarTopics,
+             s.addedAt AS addedAt, count(DISTINCT w) AS wordCount
       ORDER BY s.addedAt DESC
     `, { userId });
-    res.json(records.map(r => ({
-      id: r.get('id'), type: r.get('type'), snippet: r.get('snippet') || '',
-      addedAt: num(r.get('addedAt')), wordCount: num(r.get('wordCount')),
-    })));
+    res.json(records.map(r => {
+      let grammarTopics = [];
+      try { grammarTopics = JSON.parse(r.get('grammarTopics') || '[]'); } catch {}
+      return {
+        id: r.get('id'), type: r.get('type'), snippet: r.get('snippet') || '',
+        grammarTopics, addedAt: num(r.get('addedAt')), wordCount: num(r.get('wordCount')),
+      };
+    }));
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

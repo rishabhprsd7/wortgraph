@@ -11,6 +11,15 @@ const LIMITS = {
   YouTube: { min: 15, max: 40, ratio: 0.12 },
 };
 
+const GRAMMAR_PROMPT = (text) =>
+  `Identify 3-5 important grammar patterns in this German text that a B1+ learner should notice. Return ONLY a JSON array, no markdown, no explanation.
+Each item: {"topic":"short name of the grammar pattern","example":"verbatim sentence from the text that demonstrates it","explanation":"one sentence: what this pattern is and why it matters"}
+
+Focus on patterns like: Konjunktiv II, Passiv mit werden, Relativsatz, Genitiv, Modalverben, trennbare Verben, Adjektivdeklination, Nebensatz, indirekte Rede, Partizip II als Adjektiv.
+
+Text:
+${text}`;
+
 const PROMPT = (text, source = 'Text') => {
   const wordCount = text.trim().split(/\s+/).length;
   const { min, max, ratio } = LIMITS[source] || LIMITS.Text;
@@ -37,6 +46,13 @@ Text:
 ${text}`;
 };
 
+function parseJsonArray(raw) {
+  const stripped = raw.replace(/^```json\n?/, '').replace(/^```\n?/, '').replace(/\n?```$/, '').trim();
+  // Extract the outermost [...] in case the model adds trailing text
+  const match = stripped.match(/\[[\s\S]*\]/);
+  return JSON.parse(match ? match[0] : stripped);
+}
+
 async function extractWithGroq(text, source) {
   const res = await fetch(GROQ_URL, {
     method: 'POST',
@@ -53,9 +69,7 @@ async function extractWithGroq(text, source) {
   });
   if (!res.ok) throw new Error(`Groq error ${res.status}: ${await res.text()}`);
   const data = await res.json();
-  const raw = data.choices[0].message.content.trim();
-  const json = raw.replace(/^```json\n?/, '').replace(/^```\n?/, '').replace(/\n?```$/, '');
-  return JSON.parse(json);
+  return parseJsonArray(data.choices[0].message.content.trim());
 }
 
 function fallbackExtract(text) {
@@ -66,12 +80,28 @@ function fallbackExtract(text) {
   return [...inText, ...rest.slice(0, 8 - inText.length)];
 }
 
-async function saveWordsToDeck(words, source, snippet, userId) {
+async function extractGrammarTopics(text) {
+  const res = await fetch(GROQ_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEY}` },
+    body: JSON.stringify({
+      model: 'llama-3.3-70b-versatile',
+      messages: [{ role: 'user', content: GRAMMAR_PROMPT(text) }],
+      temperature: 0.2,
+      max_tokens: 1024,
+    })
+  });
+  if (!res.ok) throw new Error(`Groq grammar error ${res.status}`);
+  const data = await res.json();
+  return parseJsonArray(data.choices[0].message.content.trim());
+}
+
+async function saveWordsToDeck(words, source, snippet, userId, grammarTopics) {
   if (!API_URL) throw new Error('VITE_API_URL is not set in .env');
   const res = await fetch(`${API_URL}/api/words`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ words, source, snippet, userId: userId || 'default' })
+    body: JSON.stringify({ words, source, snippet, userId: userId || 'default', grammarTopics: grammarTopics || [] })
   });
   if (!res.ok) throw new Error(`Server error ${res.status}: ${await res.text()}`);
   return res.json();
@@ -86,6 +116,7 @@ export function Extract({ userId }) {
   const [text, setText] = useState(() => LS.get('ex_text', ""));
   const [source, setSource] = useState(() => LS.get('ex_source', "Text"));
   const [extracted, setExtracted] = useState(() => LS.get('ex_words', []));
+  const [grammarTopics, setGrammarTopics] = useState(() => LS.get('ex_grammar', []));
   const [added, setAdded] = useState(() => new Set(LS.get('ex_added', [])));
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -97,6 +128,7 @@ export function Extract({ userId }) {
   const saveText = (v) => { setText(v); LS.set('ex_text', v); };
   const saveSource = (v) => { setSource(v); LS.set('ex_source', v); };
   const saveExtracted = (v) => { setExtracted(v); LS.set('ex_words', v); };
+  const saveGrammar = (v) => { setGrammarTopics(v); LS.set('ex_grammar', v); };
   const saveAdded = (fn) => setAdded(prev => {
     const next = fn(prev);
     LS.set('ex_added', [...next]);
@@ -115,15 +147,22 @@ export function Extract({ userId }) {
     setLoading(true);
     setExtractionId(id => id + 1);
     saveExtracted([]);
+    saveGrammar([]);
     saveAdded(() => new Set());
     setSaved(false);
     setError(null);
 
     try {
-      const words = hasApiKey
-        ? await extractWithGroq(text, source)
-        : fallbackExtract(text);
-      saveExtracted(words);
+      if (hasApiKey) {
+        const [words, grammar] = await Promise.all([
+          extractWithGroq(text, source),
+          extractGrammarTopics(text).catch(() => []),
+        ]);
+        saveExtracted(words);
+        saveGrammar(grammar);
+      } else {
+        saveExtracted(fallbackExtract(text));
+      }
     } catch (e) {
       console.error("Groq error:", e);
       setError(`Error: ${e.message} — showing demo words instead.`);
@@ -155,7 +194,7 @@ export function Extract({ userId }) {
     if (selectedWords.length === 0) return;
     setSaving(true);
     try {
-      await saveWordsToDeck(selectedWords, source, text.slice(0, 3000), userId);
+      await saveWordsToDeck(selectedWords, source, text.slice(0, 3000), userId, grammarTopics);
       setSaved(true);
       showToast(`${selectedWords.length} word${selectedWords.length === 1 ? '' : 's'} added — head to the Learn tab to study them`);
     } catch (e) {
