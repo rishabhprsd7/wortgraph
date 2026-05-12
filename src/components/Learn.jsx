@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { flashcards as staticCards } from '../data/vocab';
 import { Flashcards } from './Flashcards';
+import { GrammarPanel } from './GrammarPanel';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
@@ -233,7 +234,7 @@ export function Learn({ userId }) {
             {loadingWords ? 'Loading…' : `${totalWords} word${totalWords !== 1 ? 's' : ''}`}
           </span>
           <div style={{ display: 'flex', background: 'var(--bg-3)', borderRadius: 8, padding: 3, gap: 2 }}>
-            {[['list', 'Study list'], ['flashcards', 'Flashcards']].map(([v, label]) => (
+            {[['list', 'Study list'], ['flashcards', 'Flashcards'], ['grammar', 'Grammar']].map(([v, label]) => (
               <button
                 key={v}
                 onClick={() => setView(v)}
@@ -253,12 +254,25 @@ export function Learn({ userId }) {
           ? <div style={{ textAlign: 'center', padding: 60, color: 'var(--ink-3)' }}>Loading…</div>
           : view === 'list'
             ? <WordListView words={words} />
-            : <Flashcards
-                words={words}
-                userId={userId}
-                sourceText={selectedSource ? sources.find(s => s.id === selectedSource)?.snippet : undefined}
-                grammarTopics={selectedSource ? (sources.find(s => s.id === selectedSource)?.grammarTopics ?? []) : []}
-              />
+            : view === 'grammar'
+              ? (() => {
+                  const topics = selectedSource ? (sources.find(s => s.id === selectedSource)?.grammarTopics ?? []) : [];
+                  return topics.length > 0
+                    ? <GrammarPanel grammarTopics={topics} />
+                    : (
+                      <div style={{ textAlign: 'center', padding: 60, color: 'var(--ink-3)', fontSize: 14 }}>
+                        {selectedSource
+                          ? 'No grammar topics for this source — it may have been added before this feature launched. Re-extract the text to get grammar highlights.'
+                          : 'Select a specific source to see its grammar highlights.'}
+                      </div>
+                    );
+                })()
+              : <Flashcards
+                  words={words}
+                  userId={userId}
+                  sourceText={selectedSource ? sources.find(s => s.id === selectedSource)?.snippet : undefined}
+                  grammarTopics={selectedSource ? (sources.find(s => s.id === selectedSource)?.grammarTopics ?? []) : []}
+                />
         }
       </div>
     </div>

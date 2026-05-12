@@ -1,58 +1,9 @@
 import { useState, useEffect } from 'react';
 import { flashcards as staticCards } from '../data/vocab';
 import { IconX, IconCheck, IconSound, IconTrophy } from './Icons';
+import { GrammarPanel } from './GrammarPanel';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
-const GROQ_KEY = import.meta.env.VITE_GROQ_KEY;
-const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
-
-async function expandGrammarTopic(topic, form, highlight, example) {
-  const prompt = `You are a German grammar teacher. A B1+ learner is looking at this sentence and wants to understand why "${highlight}" makes it "${topic}".
-
-Sentence: "${example}"
-Key phrase: "${highlight}"
-Pattern: ${form || topic}
-
-Break it down word by word. Return ONLY this JSON (no markdown):
-{
-  "breakdown": [
-    {"part": "exact word or morpheme from the key phrase", "role": "what it is and what job it does HERE in this sentence — be specific, max 10 words"}
-  ],
-  "pattern": "the rule as a formula anchored to this sentence, e.g. 'wurde + [Partizip II] = passive past: focus on what happened, not who did it'",
-  "oneMore": {"de": "one new German sentence using the same pattern", "en": "English translation"}
-}`;
-
-  const res = await fetch(GROQ_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEY}` },
-    body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.2,
-      max_tokens: 600,
-    })
-  });
-  if (!res.ok) throw new Error(`Groq error ${res.status}`);
-  const data = await res.json();
-  const raw = data.choices[0].message.content.trim();
-  const match = raw.match(/\{[\s\S]*\}/);
-  return JSON.parse(match ? match[0] : raw);
-}
-
-function HighlightedSentence({ example, highlight }) {
-  if (!highlight || !example) return <span style={{ fontStyle: 'italic' }}>„{example}"</span>;
-  const idx = example.toLowerCase().indexOf(highlight.toLowerCase());
-  if (idx === -1) return <span style={{ fontStyle: 'italic' }}>„{example}"</span>;
-  return (
-    <span style={{ fontStyle: 'italic' }}>
-      „{example.slice(0, idx)}
-      <mark style={{ background: 'rgba(127,119,221,0.18)', color: 'var(--violet)', borderRadius: 3, padding: '0 2px', fontStyle: 'normal', fontWeight: 700 }}>
-        {example.slice(idx, idx + highlight.length)}
-      </mark>
-      {example.slice(idx + highlight.length)}"
-    </span>
-  );
-}
 
 function speak(word) {
   if (!window.speechSynthesis) return;
@@ -108,8 +59,6 @@ export function Flashcards({ words: propWords, userId, sourceText, grammarTopics
   const [stats, setStats] = useState({ know: 0, no: 0 });
   const [showSourceText, setShowSourceText] = useState(false);
   const [showGrammar, setShowGrammar] = useState(true);
-  const [expandedTopic, setExpandedTopic] = useState(null);
-  const [expansions, setExpansions] = useState({});
   // Track unique words the user didn't know (for end-of-session summary)
   const [newWords, setNewWords] = useState(new Set());
 
@@ -386,124 +335,13 @@ export function Flashcards({ words: propWords, userId, sourceText, grammarTopics
               background: 'var(--violet-soft)', border: '0.5px solid var(--violet-line)',
               color: 'var(--violet)', fontWeight: 600, fontSize: 13, cursor: 'pointer',
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              marginBottom: showGrammar ? 8 : 0,
             }}
           >
             <span>Grammar highlights</span>
             <span style={{ fontSize: 11, opacity: 0.7 }}>{showGrammar ? '▲ hide' : '▼ show'}</span>
           </button>
-          {showGrammar && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
-              {grammarTopics.map((g, i) => {
-                const isOpen = expandedTopic === i;
-                const exp = expansions[i];
-                return (
-                  <div key={i} style={{
-                    borderRadius: 8, background: 'var(--bg)',
-                    border: isOpen ? '1px solid var(--violet-line)' : '0.5px solid var(--line)',
-                    overflow: 'hidden',
-                  }}>
-                    {/* Header row */}
-                    <div style={{ padding: '12px 14px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--violet)' }}>{g.topic}</span>
-                          {g.form && (
-                            <span style={{
-                              fontSize: 10, fontWeight: 600, padding: '1px 7px', borderRadius: 999,
-                              background: 'rgba(127,119,221,0.12)', color: 'var(--violet)', letterSpacing: '0.02em',
-                            }}>{g.form}</span>
-                          )}
-                        </div>
-                        {GROQ_KEY && (
-                          <button
-                            onClick={async () => {
-                              if (isOpen) { setExpandedTopic(null); return; }
-                              setExpandedTopic(i);
-                              if (!exp) {
-                                setExpansions(prev => ({ ...prev, [i]: { loading: true } }));
-                                try {
-                                  const result = await expandGrammarTopic(g.topic, g.form, g.highlight, g.example);
-                                  setExpansions(prev => ({ ...prev, [i]: result }));
-                                } catch {
-                                  setExpansions(prev => ({ ...prev, [i]: { error: true } }));
-                                }
-                              }
-                            }}
-                            style={{
-                              fontSize: 11, padding: '3px 10px', borderRadius: 999, border: '1px solid var(--violet-line)',
-                              background: isOpen ? 'var(--violet)' : 'transparent',
-                              color: isOpen ? '#fff' : 'var(--violet)',
-                              cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap',
-                            }}
-                          >
-                            {isOpen ? 'Close' : 'Explain more'}
-                          </button>
-                        )}
-                      </div>
-                      {g.example && (
-                        <div style={{ fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.6, marginBottom: g.explanation ? 5 : 0 }}>
-                          <HighlightedSentence example={g.example} highlight={g.highlight} />
-                        </div>
-                      )}
-                      {g.explanation && (
-                        <div style={{ fontSize: 11, color: 'var(--ink-3)', lineHeight: 1.5 }}>
-                          {g.explanation}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Expanded drill-down */}
-                    {isOpen && (
-                      <div style={{ borderTop: '1px solid var(--violet-line)', padding: '14px 14px', background: 'var(--violet-soft)' }}>
-                        {exp?.loading && (
-                          <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>Loading explanation…</div>
-                        )}
-                        {exp?.error && (
-                          <div style={{ fontSize: 12, color: 'var(--red)' }}>Couldn't load — try again.</div>
-                        )}
-                        {exp && !exp.loading && !exp.error && (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                            {/* Word-by-word breakdown */}
-                            {exp.breakdown?.length > 0 && (
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                                {exp.breakdown.map((b, j) => (
-                                  <div key={j} style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                                    <span style={{
-                                      fontSize: 12, fontWeight: 700, color: 'var(--violet)',
-                                      background: 'rgba(127,119,221,0.15)', borderRadius: 4,
-                                      padding: '1px 7px', whiteSpace: 'nowrap', flexShrink: 0,
-                                    }}>{b.part}</span>
-                                    <span style={{ fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.5 }}>{b.role}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                            {/* Pattern rule */}
-                            {exp.pattern && (
-                              <div style={{
-                                padding: '7px 10px', borderRadius: 6,
-                                background: 'rgba(127,119,221,0.1)', border: '0.5px solid var(--violet-line)',
-                                fontSize: 11, color: 'var(--violet)', fontFamily: 'monospace', lineHeight: 1.5,
-                              }}>
-                                {exp.pattern}
-                              </div>
-                            )}
-                            {/* One more example */}
-                            {exp.oneMore && (
-                              <div style={{ padding: '8px 10px', borderRadius: 6, background: 'rgba(255,255,255,0.6)', border: '0.5px solid var(--violet-line)' }}>
-                                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)', lineHeight: 1.5 }}>{exp.oneMore.de}</div>
-                                <div style={{ fontSize: 11, color: 'var(--ink-3)', fontStyle: 'italic' }}>{exp.oneMore.en}</div>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          {showGrammar && <GrammarPanel grammarTopics={grammarTopics} compact />}
         </div>
       )}
     </div>
