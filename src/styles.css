@@ -1242,7 +1242,36 @@ a { color: inherit; text-decoration: none; }
   background-position: right 10px center;
 }
 
-/* ──────────────── Mobile (≤ 768px) ──────────────── */
+/* ──────────────── Crossword ──────────────── */
+.cw-layout {
+  display: flex;
+  gap: 28px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.cw-clues {
+  flex: 1;
+  min-width: 220px;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.cw-spinner {
+  width: 36px; height: 36px;
+  border: 3px solid var(--violet-line);
+  border-top-color: var(--violet);
+  border-radius: 50%;
+  animation: cw-spin 0.75s linear infinite;
+}
+@keyframes cw-spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 768px) {
+  .cw-layout { flex-direction: column; }
+  .cw-clues { max-width: 100%; }
+}
+
+
 @media (max-width: 768px) {
   /* Nav: collapse streak, tighten padding */
   .nav { padding: 10px 14px; grid-template-columns: auto 1fr auto; gap: 0; }

@@ -123,6 +123,7 @@ export function Nav({ route, setRoute, dark, userId, onSwitchUser, onTryDemo }) 
   const links = [
     { id: "learn", label: "Learn" },
     { id: "explore", label: "Explore" },
+    { id: "crossword", label: "Play" },
     { id: "progress", label: "Progress" },
     { id: "agent", label: "AI Coach" },
     { id: "about", label: "About" },

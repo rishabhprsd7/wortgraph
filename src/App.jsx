@@ -9,6 +9,7 @@ import { Dashboard } from './components/Dashboard';
 import { Agent } from './components/Agent';
 import { Graph } from './components/Graph';
 import { About } from './components/About';
+import { Crossword } from './components/Crossword';
 
 function ScreenHeader({ title, sub, right }) {
   return (
@@ -155,6 +156,12 @@ export default function App() {
                   sub="Powered by Neo4j · analyses your graph to suggest what to study next"
                 />
                 <Agent userId={userId} />
+              </>
+            )}
+            {route === 'crossword' && (
+              <>
+                <ScreenHeader title="Crossword" sub="Your hardest words, turned into a puzzle — AI-generated clues" />
+                <Crossword userId={userId} />
               </>
             )}
             {route === 'about' && (
