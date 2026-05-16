@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { extractedWords, sampleText } from '../data/vocab';
 import { IconKeyboard, IconPaste, IconCheck } from './Icons';
 
