@@ -119,13 +119,13 @@ Return ONLY a JSON array (no markdown, no code block):
   const match = raw.match(/\[[\s\S]*\]/);
   const arr = JSON.parse(match?match[0]:raw);
 
-  // Safety net: strip any clue that contains the answer word or its stem
+  // Safety net: strip any clue that contains the exact answer word
   const result = {};
   for (const {word, clue, clueDE} of arr) {
-    const stem = word.toLowerCase().slice(0, Math.max(4, word.length - 3));
-    const contains = (text) => text && text.toLowerCase().includes(stem);
+    const w = word.toLowerCase();
+    const contains = (text) => text && text.toLowerCase().includes(w);
     result[word] = {
-      clue: contains(clue) ? (clueDE && !contains(clueDE) ? '(see German hint)' : word) : clue,
+      clue: contains(clue) ? '—' : clue,
       clueDE: contains(clueDE) ? null : clueDE,
     };
   }
