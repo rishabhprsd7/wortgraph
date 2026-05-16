@@ -97,26 +97,26 @@ async function generateClues(words) {
   const list = words.map(w=>`- ${w.word} (${w.translation||''}): "${w.example||''}"`).join('\n');
   const prompt = `You're writing clues for a German vocabulary crossword for a B1+ English-speaking learner.
 
-Each clue must be 12-20 words. Make them rich and context-aware: reference how the word is actually used, its meaning in context, a memorable image, or a usage hint that distinguishes it from similar words. You may hint at grammar (noun gender, common collocations, verb frame) but never state the German word itself.
+Each clue must be 12-20 words. Make them rich and context-aware: reference how the word is actually used, its meaning in context, a memorable image, or a usage hint. Never include the German word itself in either clue.
 
-If an example sentence is provided, use it as inspiration — paraphrase what the word means in that context. If the translation is provided, you may refer to the English meaning but make the clue about USAGE, not a dictionary definition.
+Also provide a German translation of the English clue as "clueDE" — same idea, same detail level, in natural German. The German clue must also NOT contain the answer word.
 
 Words:
 ${list}
 
 Return ONLY a JSON array (no markdown, no code block):
-[{"word":"exactword","clue":"your detailed clue here"}]`;
+[{"word":"exactword","clue":"English clue here","clueDE":"Deutsche Beschreibung hier"}]`;
 
   const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method:'POST',
     headers:{'Content-Type':'application/json','Authorization':`Bearer ${GROQ_KEY}`},
-    body:JSON.stringify({model:'llama-3.3-70b-versatile',messages:[{role:'user',content:prompt}],temperature:0.6,max_tokens:1800})
+    body:JSON.stringify({model:'llama-3.3-70b-versatile',messages:[{role:'user',content:prompt}],temperature:0.6,max_tokens:2400})
   });
   const data = await res.json();
   const raw = data.choices[0].message.content.trim();
   const match = raw.match(/\[[\s\S]*\]/);
   const arr = JSON.parse(match?match[0]:raw);
-  return Object.fromEntries(arr.map(({word,clue})=>[word,clue]));
+  return Object.fromEntries(arr.map(({word,clue,clueDE})=>[word,{clue,clueDE}]));
 }
 
 // ─── Component ───
@@ -152,7 +152,11 @@ export function Crossword({ userId }) {
       let clueMap={};
       try { clueMap=await generateClues(hard); } catch {}
 
-      const words = hard.map(w=>({...w, clue:clueMap[w.word]||w.translation||'?'}));
+      const words = hard.map(w=>({
+        ...w,
+        clue: clueMap[w.word]?.clue || w.translation || '?',
+        clueDE: clueMap[w.word]?.clueDE || null,
+      }));
 
       setMsg('Building crossword…');
       const result = buildCrossword(words);
@@ -456,9 +460,9 @@ export function Crossword({ userId }) {
                     <div style={{flex:1, opacity:done?0.55:1}}>
                       <div style={{fontSize:13,color:'var(--ink-2)',lineHeight:1.45,
                         textDecoration:isSolved?'line-through':'none'}}>{p.clue}</div>
-                      {p.example && !done && (
+                      {p.clueDE && !done && (
                         <div style={{fontSize:11,color:'var(--violet)',fontStyle:'italic',marginTop:3,lineHeight:1.4,opacity:0.75}}>
-                          „{p.example}"
+                          {p.clueDE}
                         </div>
                       )}
                     </div>
