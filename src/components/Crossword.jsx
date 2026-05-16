@@ -100,18 +100,21 @@ function buildCrossword(wordObjs) {
 async function generateClues(words) {
   const list = words.map(w=>`- ${w.word} (${w.translation||''}): "${w.example||''}"`).join('\n');
   const prompt = `You're writing clues for a German vocabulary crossword for a B1+ English-speaking learner.
-Each clue should be a cryptic-but-fair hint in English. Reference etymology, wordplay, usage, or imagery. Do NOT include the German word in the clue. Keep each clue to 5-10 words.
+
+Each clue must be 12-20 words. Make them rich and context-aware: reference how the word is actually used, its meaning in context, a memorable image, or a usage hint that distinguishes it from similar words. You may hint at grammar (noun gender, common collocations, verb frame) but never state the German word itself.
+
+If an example sentence is provided, use it as inspiration — paraphrase what the word means in that context. If the translation is provided, you may refer to the English meaning but make the clue about USAGE, not a dictionary definition.
 
 Words:
 ${list}
 
-Return ONLY a JSON array (no markdown):
-[{"word":"exactword","clue":"your clue"}]`;
+Return ONLY a JSON array (no markdown, no code block):
+[{"word":"exactword","clue":"your detailed clue here"}]`;
 
   const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method:'POST',
     headers:{'Content-Type':'application/json','Authorization':`Bearer ${GROQ_KEY}`},
-    body:JSON.stringify({model:'llama-3.3-70b-versatile',messages:[{role:'user',content:prompt}],temperature:0.5,max_tokens:900})
+    body:JSON.stringify({model:'llama-3.3-70b-versatile',messages:[{role:'user',content:prompt}],temperature:0.6,max_tokens:1800})
   });
   const data = await res.json();
   const raw = data.choices[0].message.content.trim();
@@ -130,13 +133,15 @@ export function Crossword({ userId }) {
   const [selDir, setSelDir]     = useState('across');
   const [correct, setCorrect]   = useState(new Set());
   const [revealed, setRevealed] = useState(new Set());
+  // store a snapshot of userGrid before reveal so we can restore it
+  const [preReveal, setPreReveal] = useState({});
   const refs = useRef({});
 
   useEffect(() => { init(); }, []);
 
   async function init() {
     setPhase('loading'); setMsg('Picking your toughest words…');
-    setCorrect(new Set()); setRevealed(new Set()); setSelCell(null);
+    setCorrect(new Set()); setRevealed(new Set()); setSelCell(null); setPreReveal({});
     try {
       const res  = await fetch(`${API_URL}/api/words${userId?`?userId=${encodeURIComponent(userId)}`:''}`);
       const all  = await res.json();
@@ -250,12 +255,29 @@ export function Crossword({ userId }) {
   function revealWord(idx) {
     const p = cw.placements[idx];
     const [dr,dc]=p.dir==='across'?[0,1]:[1,0];
+    // snapshot current cells so we can restore on unreveal
+    const snapshot = {};
+    p.word.split('').forEach((_,j)=>{ snapshot[`${p.row+dr*j}-${p.col+dc*j}`] = userGrid[p.row+dr*j]?.[p.col+dc*j] ?? ''; });
+    setPreReveal(prev=>({...prev, [idx]: snapshot}));
     setUserGrid(g=>{
       const ng=g.map(r=>[...r]);
       p.word.toLowerCase().split('').forEach((ch,j)=>{ ng[p.row+dr*j][p.col+dc*j]=ch; });
       return ng;
     });
     setRevealed(prev=>new Set([...prev,idx]));
+  }
+
+  function unrevealWord(idx) {
+    const p = cw.placements[idx];
+    const [dr,dc]=p.dir==='across'?[0,1]:[1,0];
+    const snapshot = preReveal[idx] || {};
+    setUserGrid(g=>{
+      const ng=g.map(r=>[...r]);
+      p.word.split('').forEach((_,j)=>{ ng[p.row+dr*j][p.col+dc*j] = snapshot[`${p.row+dr*j}-${p.col+dc*j}`] ?? ''; });
+      return ng;
+    });
+    setRevealed(prev=>{ const s=new Set(prev); s.delete(idx); return s; });
+    setPreReveal(prev=>{ const n={...prev}; delete n[idx]; return n; });
   }
 
   function selectWord(idx) {
@@ -319,23 +341,31 @@ export function Crossword({ userId }) {
         <div style={{
           display:'inline-grid',
           gridTemplateColumns:`repeat(${cw.cols},${CELL}px)`,
-          gap:1, background:'#555',
-          border:'2px solid #333', borderRadius:6,
+          gap:2, background:'#2d2459',
+          border:'3px solid #2d2459', borderRadius:10,
+          padding:2,
         }}>
           {cw.grid.map((row,r)=>row.map((cell,c)=>{
             const st = cellState(r,c);
             if (st==='black') return (
-              <div key={`${r}-${c}`} style={{width:CELL,height:CELL,background:'#222'}} />
+              <div key={`${r}-${c}`} style={{width:CELL,height:CELL,background:'#2d2459',borderRadius:3}} />
             );
             const {locked,isActive,inWord,isCorrect,isRevealed} = st;
             const num = cw.numGrid[r][c];
-            const bg = isActive ? 'rgba(127,119,221,0.4)' : inWord ? 'rgba(127,119,221,0.15)' : isCorrect ? '#e6f7f1' : isRevealed ? '#fff0f0' : '#fff';
-            const color = isRevealed ? 'var(--red)' : isCorrect ? 'var(--green)' : 'var(--ink)';
+            let bg, color;
+            if (isActive) { bg='#ffe04b'; color='#1a1440'; }
+            else if (inWord) { bg='#fff9cc'; color='var(--ink)'; }
+            else if (isCorrect) { bg='#b8f5d8'; color='#0d6e44'; }
+            else if (isRevealed) { bg='#ffd4e8'; color='#b5006e'; }
+            else { bg='#fff'; color='var(--ink)'; }
             return (
               <div key={`${r}-${c}`} onClick={()=>handleCellClick(r,c)}
-                style={{width:CELL,height:CELL,background:bg,position:'relative',cursor:'pointer'}}
+                style={{width:CELL,height:CELL,background:bg,position:'relative',cursor:'pointer',borderRadius:3,
+                  boxShadow: isActive ? '0 0 0 2px #f0b800 inset' : 'none',
+                  transition:'background 0.15s',
+                }}
               >
-                {num>0 && <span style={{position:'absolute',top:1,left:2,fontSize:7,lineHeight:1,color:'#777',pointerEvents:'none'}}>{num}</span>}
+                {num>0 && <span style={{position:'absolute',top:1,left:2,fontSize:7,lineHeight:1,color:isActive?'#1a1440':'#8878cc',fontWeight:700,pointerEvents:'none'}}>{num}</span>}
                 <input
                   ref={el=>{if(el)refs.current[`${r}-${c}`]=el;}}
                   value={userGrid[r]?.[c]??''}
@@ -370,26 +400,36 @@ export function Crossword({ userId }) {
             <div style={{display:'flex',flexDirection:'column',gap:1}}>
               {list.map(p=>{
                 const idx=cw.placements.indexOf(p);
-                const done=correct.has(idx)||revealed.has(idx);
+                const isSolved=correct.has(idx);
+                const isRev=revealed.has(idx);
+                const done=isSolved||isRev;
                 const isAct=idx===activeIdx;
                 return (
-                  <div key={p.num} onClick={()=>!done&&selectWord(idx)}
+                  <div key={p.num} onClick={()=>!isSolved&&selectWord(idx)}
                     style={{
                       display:'flex',alignItems:'flex-start',gap:8,padding:'6px 8px',borderRadius:6,
-                      cursor:done?'default':'pointer',
+                      cursor:isSolved?'default':'pointer',
                       background:isAct?'var(--violet-soft)':'transparent',
                       border:isAct?'0.5px solid var(--violet-line)':'0.5px solid transparent',
                     }}
                   >
                     <span style={{fontSize:11,fontWeight:700,color:'var(--violet)',minWidth:18,marginTop:1,flexShrink:0}}>{p.num}.</span>
                     <span style={{fontSize:13,color:'var(--ink-2)',flex:1,lineHeight:1.45,
-                      textDecoration:done?'line-through':'none',opacity:done?0.5:1}}>{p.clue}</span>
+                      textDecoration:isSolved?'line-through':'none',opacity:done?0.55:1}}>{p.clue}</span>
                     <div style={{display:'flex',alignItems:'center',gap:4,flexShrink:0}}>
-                      {correct.has(idx)&&<span style={{color:'var(--green)',fontSize:14}}>✓</span>}
-                      {!done&&<button onClick={e=>{e.stopPropagation();revealWord(idx);}}
-                        style={{fontSize:10,padding:'2px 6px',borderRadius:4,border:'0.5px solid var(--line)',background:'var(--bg-3)',color:'var(--ink-4)',cursor:'pointer'}}>
-                        Reveal
-                      </button>}
+                      {isSolved && <span style={{color:'#0d6e44',fontSize:14}}>✓</span>}
+                      {isRev && (
+                        <button onClick={e=>{e.stopPropagation();unrevealWord(idx);}}
+                          style={{fontSize:10,padding:'2px 6px',borderRadius:4,border:'0.5px solid #f9a8d4',background:'#fdf2f8',color:'#b5006e',cursor:'pointer',fontWeight:600}}>
+                          Unreveal
+                        </button>
+                      )}
+                      {!done && (
+                        <button onClick={e=>{e.stopPropagation();revealWord(idx);}}
+                          style={{fontSize:10,padding:'2px 6px',borderRadius:4,border:'0.5px solid var(--line)',background:'var(--bg-3)',color:'var(--ink-4)',cursor:'pointer'}}>
+                          Reveal
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
