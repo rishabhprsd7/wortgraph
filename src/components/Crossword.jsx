@@ -341,14 +341,14 @@ export function Crossword({ userId }) {
         <div style={{
           display:'inline-grid',
           gridTemplateColumns:`repeat(${cw.cols},${CELL}px)`,
-          gap:2, background:'#2d2459',
-          border:'3px solid #2d2459', borderRadius:10,
+          gap:2, background:'#d8d3f5',
+          border:'3px solid #c4bff0', borderRadius:10,
           padding:2,
         }}>
           {cw.grid.map((row,r)=>row.map((cell,c)=>{
             const st = cellState(r,c);
             if (st==='black') return (
-              <div key={`${r}-${c}`} style={{width:CELL,height:CELL,background:'#2d2459',borderRadius:3}} />
+              <div key={`${r}-${c}`} style={{width:CELL,height:CELL,background:'#c4bff0',borderRadius:3}} />
             );
             const {locked,isActive,inWord,isCorrect,isRevealed} = st;
             const num = cw.numGrid[r][c];
