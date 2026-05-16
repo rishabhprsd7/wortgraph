@@ -116,6 +116,26 @@ async function saveWordsToDeck(words, source, snippet, userId, grammarTopics) {
   return res.json();
 }
 
+async function validateCustomWords(wordList) {
+  const list = wordList.join(', ');
+  const prompt = `You are a German language expert. For each word in this list, check if it is a real German word. If valid, generate a full vocabulary entry. Return ONLY a JSON array, no markdown.
+
+Each item must be:
+- {"word":"base lemma","valid":true,"article":"der/die/das or empty string for verbs/adjectives","cefr":"A2/B1/B2/C1/C2","translation":"English meaning in 2-4 words","example":"one sentence (10-16 words) showing the word in context","exampleTranslation":"natural English translation"}
+- {"word":"original input","valid":false,"reason":"why it is not a valid German word"}
+
+Words to validate: ${list}`;
+
+  const res = await fetch(GROQ_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEY}` },
+    body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: [{ role: 'user', content: prompt }], temperature: 0.1, max_tokens: 2048 })
+  });
+  if (!res.ok) throw new Error(`Groq error ${res.status}`);
+  const data = await res.json();
+  return parseJsonArray(data.choices[0].message.content.trim());
+}
+
 const LS = {
   get: (k, fallback) => { try { const v = sessionStorage.getItem(k); return v ? JSON.parse(v) : fallback; } catch { return fallback; } },
   set: (k, v) => { try { sessionStorage.setItem(k, JSON.stringify(v)); } catch {} }
@@ -143,6 +163,10 @@ export function Extract({ userId }) {
     LS.set('ex_added', [...next]);
     return next;
   });
+
+  const [customText, setCustomText] = useState('');
+  const [invalidWords, setInvalidWords] = useState([]);
+  const [mode, setMode] = useState('text'); // 'text' | 'custom'
 
   const hasApiKey = !!GROQ_KEY;
   const sources = ["Text", "YouTube"];
@@ -176,6 +200,29 @@ export function Extract({ userId }) {
       console.error("Groq error:", e);
       setError(`Error: ${e.message} — showing demo words instead.`);
       saveExtracted(fallbackExtract(text));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onExtractCustom = async () => {
+    const words = customText.split(/[\n,]+/).map(w => w.trim()).filter(Boolean);
+    if (words.length === 0) return;
+    setLoading(true);
+    saveExtracted([]);
+    saveAdded(() => new Set());
+    setSaved(false);
+    setError(null);
+    setInvalidWords([]);
+    try {
+      const results = await withRetry(() => validateCustomWords(words));
+      const valid = results.filter(r => r.valid);
+      const invalid = results.filter(r => !r.valid);
+      saveExtracted(valid);
+      setInvalidWords(invalid);
+      saveAdded(() => new Set(valid.map(w => w.word)));
+    } catch (e) {
+      setError(`Error: ${e.message}`);
     } finally {
       setLoading(false);
     }
@@ -220,6 +267,39 @@ export function Extract({ userId }) {
           <IconCheck />{toast}
         </div>
       )}
+
+      {/* Mode toggle */}
+      <div style={{ display: 'flex', background: 'var(--bg-3)', borderRadius: 8, padding: 3, gap: 2, marginBottom: 16, alignSelf: 'flex-start' }}>
+        {[['text', 'Extract from text'], ['custom', 'Add custom words']].map(([m, label]) => (
+          <button key={m} onClick={() => setMode(m)} style={{
+            padding: '6px 16px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13,
+            background: mode === m ? '#fff' : 'transparent',
+            color: mode === m ? 'var(--ink)' : 'var(--ink-3)',
+            fontWeight: mode === m ? 600 : 400,
+            boxShadow: mode === m ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+          }}>{label}</button>
+        ))}
+      </div>
+
+      {mode === 'custom' ? (
+        <div className="dropzone">
+          <div className="dz-icon">✎</div>
+          <div className="dz-title">Add custom German words</div>
+          <div className="dz-sub">Enter one word per line or separate with commas — we'll verify each word is real German and generate entries</div>
+          <textarea
+            className="dz-textarea"
+            placeholder={"Schadenfreude\nWeltanschauung\nZeitgeist\nGesundheit"}
+            value={customText}
+            onChange={e => setCustomText(e.target.value)}
+          />
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: 22 }}>
+            <button className="btn btn-primary btn-sm" onClick={onExtractCustom}
+              disabled={!customText.trim() || loading}>
+              Validate & add words →
+            </button>
+          </div>
+        </div>
+      ) : (
       <div className="dropzone">
         <div className="dz-icon"><IconKeyboard /></div>
         <div className="dz-title">Paste German text or YouTube transcript</div>
@@ -276,10 +356,17 @@ export function Extract({ userId }) {
           </button>
         </div>
       </div>
+      )}
 
       {error && (
         <div style={{ marginTop: 16, padding: "10px 16px", borderRadius: 8, background: "var(--red-soft)", color: "var(--red)", fontSize: 13 }}>
           {error}
+        </div>
+      )}
+
+      {invalidWords.length > 0 && (
+        <div style={{ marginTop: 12, padding: '10px 16px', borderRadius: 8, background: '#fff8e6', border: '1px solid #f0c040', fontSize: 13, color: '#7a5800' }}>
+          <b>Not valid German words:</b> {invalidWords.map(w => `${w.word}${w.reason ? ` (${w.reason})` : ''}`).join(' · ')}
         </div>
       )}
 

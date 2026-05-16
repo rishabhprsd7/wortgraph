@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { flashcards as staticCards } from '../data/vocab';
 import { IconX, IconCheck, IconSound, IconTrophy } from './Icons';
-import { GrammarPanel } from './GrammarPanel';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
@@ -58,7 +57,6 @@ export function Flashcards({ words: propWords, userId, sourceText, grammarTopics
   const [flipped, setFlipped] = useState(false);
   const [stats, setStats] = useState({ know: 0, no: 0 });
   const [showSourceText, setShowSourceText] = useState(false);
-  const [showGrammar, setShowGrammar] = useState(true);
   // Track unique words the user didn't know (for end-of-session summary)
   const [newWords, setNewWords] = useState(new Set());
 
@@ -326,24 +324,6 @@ export function Flashcards({ words: propWords, userId, sourceText, grammarTopics
         <span>Know it: <b style={{ color: 'var(--green)' }}>{stats.know}</b></span>
       </div>
 
-      {grammarTopics.length > 0 && (
-        <div style={{ marginTop: 28, borderTop: '1px solid var(--line)', paddingTop: 20 }}>
-          <button
-            onClick={() => setShowGrammar(s => !s)}
-            style={{
-              width: '100%', padding: '10px 14px', borderRadius: 8,
-              background: 'var(--violet-soft)', border: '0.5px solid var(--violet-line)',
-              color: 'var(--violet)', fontWeight: 600, fontSize: 13, cursor: 'pointer',
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              marginBottom: showGrammar ? 8 : 0,
-            }}
-          >
-            <span>Grammar highlights</span>
-            <span style={{ fontSize: 11, opacity: 0.7 }}>{showGrammar ? '▲ hide' : '▼ show'}</span>
-          </button>
-          {showGrammar && <GrammarPanel grammarTopics={grammarTopics} compact />}
-        </div>
-      )}
     </div>
   );
 }

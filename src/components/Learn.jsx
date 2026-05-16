@@ -28,14 +28,37 @@ ${snippet}`;
 const CEFR_COLOR = { B1: '#7f77dd', B2: '#5b8ff9', C1: '#1d9e75', C2: '#e24b4a' };
 
 function WordListView({ words }) {
-  if (words.length === 0) return (
-    <div style={{ textAlign: 'center', padding: 60, color: 'var(--ink-3)', fontSize: 14 }}>
-      No words in this source. Go to Explore to extract vocabulary.
-    </div>
-  );
+  const [search, setSearch] = useState('');
+  const q = search.trim().toLowerCase();
+  const sorted = [...words].sort((a, b) => a.word.localeCompare(b.word, 'de'));
+  const filtered = q ? sorted.filter(w =>
+    w.word.toLowerCase().includes(q) || (w.translation || '').toLowerCase().includes(q)
+  ) : sorted;
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      {words.map(w => {
+    <div>
+      <div style={{ position: 'relative', marginBottom: 12 }}>
+        <input
+          type="text"
+          placeholder="Search words or translations…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          style={{
+            width: '100%', padding: '9px 14px 9px 36px', fontSize: 13,
+            border: '1px solid var(--line)', borderRadius: 8, outline: 'none',
+            background: 'var(--bg)', color: 'var(--ink)', boxSizing: 'border-box',
+          }}
+        />
+        <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-4)', pointerEvents: 'none', fontSize: 14 }}>🔍</span>
+        {search && <button onClick={() => setSearch('')} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-3)', fontSize: 16, lineHeight: 1, padding: 2 }}>×</button>}
+      </div>
+      {filtered.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: 60, color: 'var(--ink-3)', fontSize: 14 }}>
+          {q ? `No words matching "${search}"` : 'No words in this source. Go to Explore to extract vocabulary.'}
+        </div>
+      ) : (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      {filtered.map(w => {
         const retention = w.retention ?? 0;
         const reviewed = (w.reviewCount ?? 0) > 0;
         return (
@@ -72,6 +95,8 @@ function WordListView({ words }) {
           </div>
         );
       })}
+    </div>
+      )}
     </div>
   );
 }

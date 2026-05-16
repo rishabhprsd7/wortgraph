@@ -48,7 +48,7 @@ function buildCrossword(wordObjs) {
 
   const doPlace = (word, r0, c0, dir) => {
     const [dr,dc]=dir==='across'?[0,1]:[1,0];
-    for (let i=0;i<word.length;i++) if(!G[r0+dr*i][c0+dc*i]) G[r0+dr*i][c0+dc*i]=word[i].toLowerCase();
+    for (let i=0;i<word.length;i++) if(!G[r0+dr*i][c0+dc*i]) G[r0+dr*i][c0+dc*i]=norm(word[i]);
   };
 
   // first word centred horizontally
