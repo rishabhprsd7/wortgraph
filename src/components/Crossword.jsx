@@ -133,8 +133,8 @@ export function Crossword({ userId }) {
   const [selDir, setSelDir]     = useState('across');
   const [correct, setCorrect]   = useState(new Set());
   const [revealed, setRevealed] = useState(new Set());
-  // store a snapshot of userGrid before reveal so we can restore it
   const [preReveal, setPreReveal] = useState({});
+  const [showHints, setShowHints] = useState(false);
   const refs = useRef({});
 
   useEffect(() => { init(); }, []);
@@ -367,6 +367,14 @@ export function Crossword({ userId }) {
                 }}
               >
                 {num>0 && <span style={{position:'absolute',top:1,left:2,fontSize:7,lineHeight:1,color:isActive?'#1a1440':'#8878cc',fontWeight:700,pointerEvents:'none'}}>{num}</span>}
+                {showHints && !userGrid[r]?.[c] && !locked && (
+                  <span style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',
+                    fontSize:13,fontWeight:700,textTransform:'uppercase',pointerEvents:'none',
+                    color:'#c4bff0', paddingTop:6,
+                  }}>
+                    {cw.grid[r][c]}
+                  </span>
+                )}
                 <input
                   ref={el=>{if(el)refs.current[`${r}-${c}`]=el;}}
                   value={userGrid[r]?.[c]??''}
@@ -386,8 +394,19 @@ export function Crossword({ userId }) {
             );
           }))}
         </div>
-        <div style={{marginTop:8,fontSize:11,color:'var(--ink-4)',textAlign:'center'}}>
-          Click to select · type to fill · click intersection again to switch direction
+        <div style={{marginTop:8,display:'flex',alignItems:'center',justifyContent:'center',gap:12}}>
+          <span style={{fontSize:11,color:'var(--ink-4)'}}>Click to select · type to fill · click intersection to switch direction</span>
+          <button
+            onClick={()=>setShowHints(h=>!h)}
+            style={{fontSize:11,padding:'3px 10px',borderRadius:20,cursor:'pointer',
+              border: showHints ? '1px solid var(--violet)' : '1px solid var(--line)',
+              background: showHints ? 'var(--violet-soft)' : 'var(--bg-3)',
+              color: showHints ? 'var(--violet)' : 'var(--ink-4)',
+              fontWeight: showHints ? 600 : 400, whiteSpace:'nowrap',
+            }}
+          >
+            {showHints ? '✦ Hints on' : '✦ Hints'}
+          </button>
         </div>
       </div>
 
