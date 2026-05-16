@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+
+const API_URL = import.meta.env.VITE_API_URL || '';
 import './styles.css';
 import { Nav } from './components/Nav';
 import { Sidebar } from './components/Sidebar';
@@ -88,6 +90,19 @@ function WelcomeModal({ onSubmit }) {
 export default function App() {
   const [route, setRoute] = useState('home');
   const [userId, setUserId] = useState(() => localStorage.getItem('wg_user'));
+  const [deckStats, setDeckStats] = useState({ due: 0, wordCount: 0, sources: [] });
+
+  useEffect(() => {
+    if (!userId || !API_URL) return;
+    const q = `?userId=${encodeURIComponent(userId)}`;
+    Promise.all([
+      fetch(`${API_URL}/api/weak${q}`).then(r => r.json()).catch(() => []),
+      fetch(`${API_URL}/api/words${q}`).then(r => r.json()).catch(() => []),
+      fetch(`${API_URL}/api/sources${q}`).then(r => r.json()).catch(() => []),
+    ]).then(([weak, words, sources]) => {
+      setDeckStats({ due: weak.length, wordCount: words.length, sources });
+    });
+  }, [userId]);
 
   const handleSetUser = (id) => {
     localStorage.setItem('wg_user', id);
@@ -116,7 +131,7 @@ export default function App() {
         <Landing setRoute={setRoute} />
       ) : (
         <div className="app-layout">
-          <Sidebar route={route} setRoute={setRoute} counts={{ due: 23 }} />
+          <Sidebar route={route} setRoute={setRoute} counts={{ due: deckStats.due }} sources={deckStats.sources} />
           <main className="main">
             {route === 'learn' && (
               <>
@@ -134,10 +149,12 @@ export default function App() {
               <>
                 <ScreenHeader
                   title="Your progress"
-                  sub="847 words across 12 topics · started 4 weeks ago"
+                  sub={deckStats.wordCount > 0
+                    ? `${deckStats.wordCount} words across ${deckStats.sources.length} source${deckStats.sources.length !== 1 ? 's' : ''}`
+                    : 'Track your vocabulary growth and retention over time'}
                   right={<button className="btn btn-ghost btn-sm">Export data</button>}
                 />
-                <Dashboard />
+                <Dashboard userId={userId} />
               </>
             )}
             {route === 'graph' && (

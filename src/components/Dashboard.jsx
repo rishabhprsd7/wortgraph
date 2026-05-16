@@ -17,7 +17,7 @@ function RetentionBar({ value, max = 100 }) {
   );
 }
 
-export function Dashboard() {
+export function Dashboard({ userId }) {
   const [words, setWords] = useState([]);
   const [weakWords, setWeakWords] = useState([]);
   const [sources, setSources] = useState([]);
@@ -25,10 +25,11 @@ export function Dashboard() {
 
   useEffect(() => {
     if (!API_URL) { setLoading(false); return; }
+    const q = userId ? `?userId=${encodeURIComponent(userId)}` : '';
     Promise.all([
-      fetch(`${API_URL}/api/words`).then(r => r.json()).catch(() => []),
-      fetch(`${API_URL}/api/weak`).then(r => r.json()).catch(() => []),
-      fetch(`${API_URL}/api/sources`).then(r => r.json()).catch(() => []),
+      fetch(`${API_URL}/api/words${q}`).then(r => r.json()).catch(() => []),
+      fetch(`${API_URL}/api/weak${q}`).then(r => r.json()).catch(() => []),
+      fetch(`${API_URL}/api/sources${q}`).then(r => r.json()).catch(() => []),
     ]).then(([w, wk, s]) => {
       setWords(w);
       setWeakWords(wk);
