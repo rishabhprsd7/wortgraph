@@ -452,9 +452,16 @@ export function Crossword({ userId }) {
                       border:isAct?'0.5px solid var(--violet-line)':'0.5px solid transparent',
                     }}
                   >
-                    <span style={{fontSize:11,fontWeight:700,color:'var(--violet)',minWidth:18,marginTop:1,flexShrink:0}}>{p.num}.</span>
-                    <span style={{fontSize:13,color:'var(--ink-2)',flex:1,lineHeight:1.45,
-                      textDecoration:isSolved?'line-through':'none',opacity:done?0.55:1}}>{p.clue}</span>
+                    <span style={{fontSize:11,fontWeight:700,color:'var(--violet)',minWidth:18,marginTop:2,flexShrink:0}}>{p.num}.</span>
+                    <div style={{flex:1, opacity:done?0.55:1}}>
+                      <div style={{fontSize:13,color:'var(--ink-2)',lineHeight:1.45,
+                        textDecoration:isSolved?'line-through':'none'}}>{p.clue}</div>
+                      {p.example && !done && (
+                        <div style={{fontSize:11,color:'var(--violet)',fontStyle:'italic',marginTop:3,lineHeight:1.4,opacity:0.75}}>
+                          „{p.example}"
+                        </div>
+                      )}
+                    </div>
                     <div style={{display:'flex',alignItems:'center',gap:4,flexShrink:0}}>
                       {isSolved && <span style={{color:'#0d6e44',fontSize:14}}>✓</span>}
                       {isRev && (

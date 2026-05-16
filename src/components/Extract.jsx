@@ -275,15 +275,17 @@ export function Extract({ userId }) {
         </div>
       )}
 
-      {/* Mode toggle */}
-      <div style={{ display: 'flex', background: 'var(--bg-3)', borderRadius: 8, padding: 3, gap: 2, marginBottom: 16, alignSelf: 'flex-start' }}>
+      {/* Mode tabs */}
+      <div style={{ display: 'flex', borderBottom: '2px solid var(--line)', marginBottom: 24, gap: 0 }}>
         {[['text', 'Extract from text'], ['custom', 'Add custom words']].map(([m, label]) => (
           <button key={m} onClick={() => setMode(m)} style={{
-            padding: '6px 16px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13,
-            background: mode === m ? '#fff' : 'transparent',
-            color: mode === m ? 'var(--ink)' : 'var(--ink-3)',
+            padding: '10px 20px', border: 'none', cursor: 'pointer', fontSize: 14,
+            background: 'transparent',
+            color: mode === m ? 'var(--violet)' : 'var(--ink-3)',
             fontWeight: mode === m ? 600 : 400,
-            boxShadow: mode === m ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+            borderBottom: mode === m ? '2px solid var(--violet)' : '2px solid transparent',
+            marginBottom: -2,
+            transition: 'color 0.15s',
           }}>{label}</button>
         ))}
       </div>
