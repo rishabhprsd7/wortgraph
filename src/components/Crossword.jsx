@@ -97,9 +97,11 @@ async function generateClues(words) {
   const list = words.map(w=>`- ${w.word} (${w.translation||''}): "${w.example||''}"`).join('\n');
   const prompt = `You're writing clues for a German vocabulary crossword for a B1+ English-speaking learner.
 
-Each clue must be 12-20 words. Make them rich and context-aware: reference how the word is actually used, its meaning in context, a memorable image, or a usage hint. Never include the German word itself in either clue.
+Each clue must be 12-20 words. Describe the CONCEPT or MEANING — never name the thing directly.
 
-Also provide a German translation of the English clue as "clueDE" — same idea, same detail level, in natural German. The German clue must also NOT contain the answer word.
+CRITICAL RULE: Neither the English clue nor the German clueDE may contain the answer word, any of its word-family forms, or a direct translation of it. If the answer is "Aufdeckung", you must NOT write "Aufdeckung", "aufdecken", "uncover", "uncovering", "expose", or "exposing" anywhere. Describe the idea around it instead.
+
+Also write "clueDE": a German description of the same idea. Apply the same strict rule — the German clue must not contain the answer word or its root in any form.
 
 Words:
 ${list}
@@ -116,7 +118,18 @@ Return ONLY a JSON array (no markdown, no code block):
   const raw = data.choices[0].message.content.trim();
   const match = raw.match(/\[[\s\S]*\]/);
   const arr = JSON.parse(match?match[0]:raw);
-  return Object.fromEntries(arr.map(({word,clue,clueDE})=>[word,{clue,clueDE}]));
+
+  // Safety net: strip any clue that contains the answer word or its stem
+  const result = {};
+  for (const {word, clue, clueDE} of arr) {
+    const stem = word.toLowerCase().slice(0, Math.max(4, word.length - 3));
+    const contains = (text) => text && text.toLowerCase().includes(stem);
+    result[word] = {
+      clue: contains(clue) ? (clueDE && !contains(clueDE) ? '(see German hint)' : word) : clue,
+      clueDE: contains(clueDE) ? null : clueDE,
+    };
+  }
+  return result;
 }
 
 // ─── Component ───
