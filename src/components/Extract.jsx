@@ -136,17 +136,15 @@ Words to validate: ${list}`;
   return parseJsonArray(data.choices[0].message.content.trim());
 }
 
-const LS = {
-  get: (k, fallback) => { try { const v = sessionStorage.getItem(k); return v ? JSON.parse(v) : fallback; } catch { return fallback; } },
-  set: (k, v) => { try { sessionStorage.setItem(k, JSON.stringify(v)); } catch {} }
-};
+// Module-level cache: survives SPA tab switches, cleared on full page reload
+let _cache = { text: '', source: 'Text', extracted: [], grammar: [], added: [] };
 
 export function Extract({ userId }) {
-  const [text, setText] = useState(() => LS.get('ex_text', ""));
-  const [source, setSource] = useState(() => LS.get('ex_source', "Text"));
-  const [extracted, setExtracted] = useState(() => LS.get('ex_words', []));
-  const [grammarTopics, setGrammarTopics] = useState(() => LS.get('ex_grammar', []));
-  const [added, setAdded] = useState(() => new Set(LS.get('ex_added', [])));
+  const [text, setText] = useState(_cache.text);
+  const [source, setSource] = useState(_cache.source);
+  const [extracted, setExtracted] = useState(_cache.extracted);
+  const [grammarTopics, setGrammarTopics] = useState(_cache.grammar);
+  const [added, setAdded] = useState(() => new Set(_cache.added));
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -154,19 +152,28 @@ export function Extract({ userId }) {
   const [error, setError] = useState(null);
   const [extractionId, setExtractionId] = useState(0);
 
-  const saveText = (v) => { setText(v); LS.set('ex_text', v); };
-  const saveSource = (v) => { setSource(v); LS.set('ex_source', v); };
-  const saveExtracted = (v) => { setExtracted(v); LS.set('ex_words', v); };
-  const saveGrammar = (v) => { setGrammarTopics(v); LS.set('ex_grammar', v); };
+  const saveText = (v) => { _cache.text = v; setText(v); };
+  const saveSource = (v) => { _cache.source = v; setSource(v); };
+  const saveExtracted = (v) => { _cache.extracted = v; setExtracted(v); };
+  const saveGrammar = (v) => { _cache.grammar = v; setGrammarTopics(v); };
   const saveAdded = (fn) => setAdded(prev => {
     const next = fn(prev);
-    LS.set('ex_added', [...next]);
+    _cache.added = [...next];
     return next;
   });
 
   const [customText, setCustomText] = useState('');
   const [invalidWords, setInvalidWords] = useState([]);
   const [mode, setMode] = useState('text'); // 'text' | 'custom'
+
+  // Clear results when switching modes
+  useEffect(() => {
+    saveExtracted([]);
+    saveAdded(() => new Set());
+    setSaved(false);
+    setInvalidWords([]);
+    setError(null);
+  }, [mode]);
 
   const hasApiKey = !!GROQ_KEY;
   const sources = ["Text", "YouTube"];

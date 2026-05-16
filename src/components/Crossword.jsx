@@ -4,13 +4,9 @@ const GROQ_KEY = import.meta.env.VITE_GROQ_KEY;
 const API_URL  = import.meta.env.VITE_API_URL || '';
 const GSZ = 21;
 
-// ─── normalise for comparison: ä≈a, ö≈o, ü≈u, ß≈s ───
-function norm(ch) {
-  return (ch ?? '').toLowerCase()
-    .replace(/ä/g,'a').replace(/ö/g,'o').replace(/ü/g,'u').replace(/ß/g,'s');
-}
+// ─── strict case-insensitive match — ä ≠ a, ö ≠ o, ü ≠ u ───
 function letterMatch(answer, typed) {
-  return norm(answer) === norm(typed);
+  return answer.toLowerCase() === typed.toLowerCase();
 }
 
 // ─── crossword placement ───
@@ -38,7 +34,7 @@ function buildCrossword(wordObjs) {
       if (cell===null) {
         if (r-pr>=0&&c-pc>=0&&r-pr<GSZ&&c-pc<GSZ&&G[r-pr][c-pc]) return false;
         if (r+pr<GSZ&&c+pc<GSZ&&r+pr>=0&&c+pc>=0&&G[r+pr][c+pc]) return false;
-      } else if (norm(cell)===norm(word[i])) {
+      } else if (cell === word[i].toLowerCase()) {
         cross++;
       } else return false;
     }
@@ -48,7 +44,7 @@ function buildCrossword(wordObjs) {
 
   const doPlace = (word, r0, c0, dir) => {
     const [dr,dc]=dir==='across'?[0,1]:[1,0];
-    for (let i=0;i<word.length;i++) if(!G[r0+dr*i][c0+dc*i]) G[r0+dr*i][c0+dc*i]=norm(word[i]);
+    for (let i=0;i<word.length;i++) if(!G[r0+dr*i][c0+dc*i]) G[r0+dr*i][c0+dc*i]=word[i].toLowerCase();
   };
 
   // first word centred horizontally
