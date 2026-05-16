@@ -1286,6 +1286,12 @@ a { color: inherit; text-decoration: none; }
   .app-layout { grid-template-columns: 1fr; }
   .sidebar { display: none; }
 
+  /* Main content area */
+  .main { padding: 16px 14px 40px; }
+  .main-head { flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+  .main-head h1 { font-size: 20px; }
+  .main-head p { font-size: 12px; }
+
   /* Learn source grid: hide sidebar, show mobile dropdown */
   .learn-grid { grid-template-columns: 1fr; }
   .desktop-only { display: none; }
@@ -1316,6 +1322,10 @@ a { color: inherit; text-decoration: none; }
   .extract-wrap { padding: 0 4px; }
   .dz-textarea { min-height: 120px; font-size: 14px; }
   .word-grid { grid-template-columns: repeat(2, 1fr); }
+
+  /* Crossword: stack grid above clues on mobile */
+  .cw-layout { flex-direction: column; }
+  .cw-clues { max-width: 100%; width: 100%; }
 }
 
 /* ──────────────── Small phones (≤ 480px) ──────────────── */

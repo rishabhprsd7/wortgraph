@@ -107,6 +107,8 @@ export default function App() {
   const handleSetUser = (id) => {
     localStorage.setItem('wg_user', id);
     setUserId(id);
+    // New users land on Explore so they can immediately add vocabulary
+    if (id !== 'demo') setRoute('explore');
   };
 
   const handleSwitchUser = () => {
@@ -136,7 +138,7 @@ export default function App() {
             {route === 'learn' && (
               <>
                 <ScreenHeader title="Learn" sub="Study by source or practice all words with flashcards" />
-                <Learn userId={userId} />
+                <Learn userId={userId} setRoute={setRoute} />
               </>
             )}
             {route === 'explore' && (
@@ -178,7 +180,7 @@ export default function App() {
             {route === 'crossword' && (
               <>
                 <ScreenHeader title="Crossword" sub="Your hardest words, turned into a puzzle — AI-generated clues" />
-                <Crossword userId={userId} />
+                <Crossword userId={userId} setRoute={setRoute} />
               </>
             )}
             {route === 'about' && (

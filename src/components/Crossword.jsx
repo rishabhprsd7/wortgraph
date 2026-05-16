@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { flashcards as staticCards } from '../data/vocab';
 
 const GROQ_KEY = import.meta.env.VITE_GROQ_KEY;
 const API_URL  = import.meta.env.VITE_API_URL || '';
@@ -133,7 +134,7 @@ Return ONLY a JSON array (no markdown, no code block):
 }
 
 // ─── Component ───
-export function Crossword({ userId }) {
+export function Crossword({ userId, setRoute }) {
   const [phase, setPhase]       = useState('loading');
   const [msg, setMsg]           = useState('Picking your toughest words…');
   const [cw, setCw]             = useState(null);
@@ -153,8 +154,16 @@ export function Crossword({ userId }) {
     setPhase('loading'); setMsg('Picking your toughest words…');
     setCorrect(new Set()); setRevealed(new Set()); setSelCell(null); setPreReveal({}); setGivenCells(new Set());
     try {
-      const res  = await fetch(`${API_URL}/api/words${userId?`?userId=${encodeURIComponent(userId)}`:''}`);
-      const all  = await res.json();
+      let all = [];
+      if (API_URL) {
+        try {
+          const res = await fetch(`${API_URL}/api/words${userId?`?userId=${encodeURIComponent(userId)}`:''}`);
+          all = await res.json();
+        } catch {}
+      }
+      // Fall back to demo cards if no backend or not enough user words
+      if (all.length < 3) all = staticCards;
+
       const hard = all
         .filter(w=>w.word&&/^[a-zA-ZäöüÄÖÜß]+$/.test(w.word)&&w.word.length>=3&&w.word.length<=14)
         .sort((a,b)=>(a.retention??50)-(b.retention??50))
@@ -327,15 +336,21 @@ export function Crossword({ userId }) {
     </div>
   );
   if (phase==='nowords') return (
-    <div className="cw-page" style={{textAlign:'center',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}}>
-      <div style={{fontSize:16,fontWeight:600,marginBottom:8}}>Not enough words yet</div>
-      <p style={{fontSize:14,color:'var(--ink-3)'}}>Add at least 3 words to your deck — go to Explore to extract vocabulary from any German text.</p>
+    <div className="cw-page" style={{textAlign:'center',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:12}}>
+      <div style={{fontSize:36,marginBottom:4}}>📚</div>
+      <div style={{fontSize:16,fontWeight:600}}>Not enough words yet</div>
+      <p style={{fontSize:14,color:'var(--ink-3)',maxWidth:360,margin:0}}>Add at least 3 words to your deck — extract vocabulary from any German text in Explore.</p>
+      {setRoute && <button className="btn btn-primary btn-sm" onClick={() => setRoute('explore')}>Go to Explore →</button>}
     </div>
   );
   if (phase==='error') return (
     <div className="cw-page" style={{textAlign:'center',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:12}}>
       <div style={{fontSize:16,fontWeight:600}}>Couldn't build the crossword</div>
-      <button className="btn btn-primary btn-sm" onClick={init}>Try again</button>
+      <p style={{fontSize:13,color:'var(--ink-3)',maxWidth:340,margin:0}}>Words may not share enough common letters. Adding more vocabulary helps build better puzzles.</p>
+      <div style={{display:'flex',gap:8,marginTop:4}}>
+        <button className="btn btn-ghost btn-sm" onClick={init}>Try again</button>
+        {setRoute && <button className="btn btn-primary btn-sm" onClick={() => setRoute('explore')}>Add more words →</button>}
+      </div>
     </div>
   );
   if (phase==='complete') return (

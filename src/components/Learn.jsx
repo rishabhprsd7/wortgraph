@@ -192,7 +192,7 @@ function TextPanel({ source, onClose }) {
   );
 }
 
-export function Learn({ userId }) {
+export function Learn({ userId, setRoute }) {
   const [sources, setSources] = useState([]);
   const [selectedSource, setSelectedSource] = useState(null);
   const [words, setWords] = useState([]);
@@ -280,8 +280,13 @@ export function Learn({ userId }) {
           />
         ))}
         {sources.length === 0 && API_URL && (
-          <div style={{ fontSize: 12, color: 'var(--ink-4)', padding: '8px 12px' }}>
-            No sources yet. Extract vocabulary first.
+          <div style={{ padding: '8px 12px' }}>
+            <div style={{ fontSize: 12, color: 'var(--ink-4)', marginBottom: 8 }}>No sources yet.</div>
+            {setRoute && (
+              <button className="btn btn-primary btn-sm" style={{ width: '100%' }} onClick={() => setRoute('explore')}>
+                Extract vocabulary →
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -307,6 +312,29 @@ export function Learn({ userId }) {
         {/* Text panel */}
         {textSource && (
           <TextPanel source={textSource} onClose={() => setTextSourceId(null)} />
+        )}
+
+        {/* Onboarding banner: shown when user has no sources yet */}
+        {!loadingWords && sources.length === 0 && API_URL && (
+          <div style={{
+            padding: '18px 22px', borderRadius: 12, marginBottom: 20,
+            background: 'var(--violet-soft)', border: '1px solid var(--violet-line)',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap',
+          }}>
+            <div>
+              <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--violet)', marginBottom: 3 }}>
+                Start by adding vocabulary
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--ink-2)' }}>
+                Paste any German text in Explore — we'll surface the words worth learning.
+              </div>
+            </div>
+            {setRoute && (
+              <button className="btn btn-primary btn-sm" style={{ whiteSpace: 'nowrap' }} onClick={() => setRoute('explore')}>
+                Extract vocabulary →
+              </button>
+            )}
+          </div>
         )}
 
         {/* View toggle */}
