@@ -287,28 +287,28 @@ export function Crossword({ userId }) {
 
   // ─── screens ───
   if (phase==='loading') return (
-    <div style={{display:'flex',flexDirection:'column',alignItems:'center',padding:'80px 20px',gap:16}}>
+    <div className="cw-page" style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:16}}>
       <div className="cw-spinner" />
       <div style={{fontSize:14,color:'var(--ink-3)'}}>{msg}</div>
     </div>
   );
   if (phase==='nowords') return (
-    <div style={{textAlign:'center',padding:'60px 20px'}}>
+    <div className="cw-page" style={{textAlign:'center',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}}>
       <div style={{fontSize:16,fontWeight:600,marginBottom:8}}>Not enough words yet</div>
       <p style={{fontSize:14,color:'var(--ink-3)'}}>Add at least 3 words to your deck — go to Explore to extract vocabulary from any German text.</p>
     </div>
   );
   if (phase==='error') return (
-    <div style={{textAlign:'center',padding:'60px 20px'}}>
-      <div style={{fontSize:16,fontWeight:600,marginBottom:12}}>Couldn't build the crossword</div>
+    <div className="cw-page" style={{textAlign:'center',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:12}}>
+      <div style={{fontSize:16,fontWeight:600}}>Couldn't build the crossword</div>
       <button className="btn btn-primary btn-sm" onClick={init}>Try again</button>
     </div>
   );
   if (phase==='complete') return (
-    <div style={{textAlign:'center',padding:'60px 20px'}}>
-      <div style={{fontSize:52,marginBottom:16}}>🎉</div>
-      <h2 style={{marginBottom:8}}>Puzzle complete!</h2>
-      <p style={{color:'var(--ink-3)',marginBottom:28}}>
+    <div className="cw-page" style={{textAlign:'center',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:8}}>
+      <div style={{fontSize:52,marginBottom:8}}>🎉</div>
+      <h2 style={{marginBottom:4}}>Puzzle complete!</h2>
+      <p style={{color:'var(--ink-3)',marginBottom:20}}>
         {cw.placements.length} words · {correct.size} solved · {revealed.size} revealed
       </p>
       <button className="btn btn-primary btn-sm" onClick={init}>New puzzle</button>
@@ -335,6 +335,7 @@ export function Crossword({ userId }) {
   };
 
   return (
+    <div className="cw-page">
     <div className="cw-layout">
       {/* Grid */}
       <div style={{overflowX:'auto'}}>
@@ -439,6 +440,7 @@ export function Crossword({ userId }) {
         ))}
         <button className="btn btn-ghost btn-sm" onClick={init} style={{marginTop:12,alignSelf:'flex-start'}}>New puzzle</button>
       </div>
+    </div>
     </div>
   );
 }

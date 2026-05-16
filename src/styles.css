@@ -1243,6 +1243,12 @@ a { color: inherit; text-decoration: none; }
 }
 
 /* ──────────────── Crossword ──────────────── */
+.cw-page {
+  background: #f0eefb;
+  border-radius: 16px;
+  padding: 28px;
+  min-height: 480px;
+}
 .cw-layout {
   display: flex;
   gap: 28px;
