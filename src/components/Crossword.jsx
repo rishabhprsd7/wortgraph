@@ -135,13 +135,14 @@ export function Crossword({ userId }) {
   const [revealed, setRevealed] = useState(new Set());
   const [preReveal, setPreReveal] = useState({});
   const [showHints, setShowHints] = useState(false);
+  const [givenCells, setGivenCells] = useState(new Set());
   const refs = useRef({});
 
   useEffect(() => { init(); }, []);
 
   async function init() {
     setPhase('loading'); setMsg('Picking your toughest words…');
-    setCorrect(new Set()); setRevealed(new Set()); setSelCell(null); setPreReveal({});
+    setCorrect(new Set()); setRevealed(new Set()); setSelCell(null); setPreReveal({}); setGivenCells(new Set());
     try {
       const res  = await fetch(`${API_URL}/api/words${userId?`?userId=${encodeURIComponent(userId)}`:''}`);
       const all  = await res.json();
@@ -162,7 +163,27 @@ export function Crossword({ userId }) {
       if (!result) { setPhase('error'); return; }
 
       setCw(result);
-      setUserGrid(result.grid.map(row=>row.map(c=>c?'':null)));
+
+      // pre-fill intersection cells + first letter of each word as "given"
+      const given = new Set();
+      const cellCount = {};
+      result.placements.forEach(p => {
+        const [dr,dc] = p.dir==='across'?[0,1]:[1,0];
+        p.word.split('').forEach((_,j) => {
+          const key = `${p.row+dr*j}-${p.col+dc*j}`;
+          cellCount[key] = (cellCount[key]||0) + 1;
+        });
+        // first letter of each word
+        given.add(`${p.row}-${p.col}`);
+      });
+      // intersection cells (shared by 2+ words)
+      Object.entries(cellCount).forEach(([key,cnt]) => { if (cnt >= 2) given.add(key); });
+
+      setGivenCells(given);
+      const initGrid = result.grid.map((row,r) =>
+        row.map((cell,c) => cell === null ? null : (given.has(`${r}-${c}`) ? cell.toLowerCase() : ''))
+      );
+      setUserGrid(initGrid);
       setPhase('ready');
     } catch(e) { console.error(e); setPhase('error'); }
   }
@@ -326,12 +347,13 @@ export function Crossword({ userId }) {
   const cellState = (r, c) => {
     if (cw.grid[r][c]===null) return 'black';
     const ws = wordsAt(r,c);
-    const locked = ws.some(w=>correct.has(w.idx)||revealed.has(w.idx));
+    const isGiven = givenCells.has(`${r}-${c}`);
+    const locked = isGiven || ws.some(w=>correct.has(w.idx)||revealed.has(w.idx));
     const isActive = selCell?.r===r&&selCell?.c===c;
     const inWord = ws.some(w=>w.idx===activeIdx&&w.dir===selDir);
     const isCorrect = ws.some(w=>correct.has(w.idx));
     const isRevealed = ws.some(w=>revealed.has(w.idx));
-    return { locked, isActive, inWord, isCorrect, isRevealed };
+    return { locked, isGiven, isActive, inWord, isCorrect, isRevealed };
   };
 
   return (
@@ -351,13 +373,14 @@ export function Crossword({ userId }) {
             if (st==='black') return (
               <div key={`${r}-${c}`} style={{width:CELL,height:CELL,background:'#c4bff0',borderRadius:3}} />
             );
-            const {locked,isActive,inWord,isCorrect,isRevealed} = st;
+            const {locked,isGiven,isActive,inWord,isCorrect,isRevealed} = st;
             const num = cw.numGrid[r][c];
             let bg, color;
             if (isActive) { bg='#ffe04b'; color='#1a1440'; }
             else if (inWord) { bg='#fff9cc'; color='var(--ink)'; }
             else if (isCorrect) { bg='#b8f5d8'; color='#0d6e44'; }
             else if (isRevealed) { bg='#ffd4e8'; color='#b5006e'; }
+            else if (isGiven) { bg='#ede9fb'; color='#5b50b8'; }
             else { bg='#fff'; color='var(--ink)'; }
             return (
               <div key={`${r}-${c}`} onClick={()=>handleCellClick(r,c)}
@@ -367,7 +390,7 @@ export function Crossword({ userId }) {
                 }}
               >
                 {num>0 && <span style={{position:'absolute',top:1,left:2,fontSize:7,lineHeight:1,color:isActive?'#1a1440':'#8878cc',fontWeight:700,pointerEvents:'none'}}>{num}</span>}
-                {showHints && !userGrid[r]?.[c] && !locked && (
+                {showHints && !userGrid[r]?.[c] && !locked && !isGiven && (
                   <span style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',
                     fontSize:13,fontWeight:700,textTransform:'uppercase',pointerEvents:'none',
                     color:'#c4bff0', paddingTop:6,
