@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
+import { CEFR_COLOR } from '../data/vocab';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
-
-const CEFR_COLOR = { B1: '#7f77dd', B2: '#5b8ff9', C1: '#1d9e75', C2: '#e24b4a' };
 
 function renderBold(text, isUser) {
   const parts = text.split(/\*\*([^*]+)\*\*/g);

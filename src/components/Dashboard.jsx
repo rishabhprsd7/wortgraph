@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { IconCheck, IconDeck } from './Icons';
+import { IconDeck } from './Icons';
+import { CEFR_COLOR } from '../data/vocab';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
-const CEFR_COLOR = { B1: '#7f77dd', B2: '#5b8ff9', C1: '#1d9e75', C2: '#e24b4a' };
 
 function RetentionBar({ value, max = 100 }) {
   const pct = max > 0 ? Math.round((value / max) * 100) : 0;

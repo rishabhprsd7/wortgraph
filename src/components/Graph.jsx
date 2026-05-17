@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
+import { CEFR_COLOR } from '../data/vocab';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
-const CEFR_COLOR = { B1: '#7f77dd', B2: '#5b8ff9', C1: '#1d9e75', C2: '#e24b4a' };
 const DEFAULT_COLOR = '#9d96e8';
 
 function colorForNode(n, mode) {
@@ -270,7 +270,7 @@ export function Graph({ userId }) {
         <svg
           ref={svgRef}
           width={size.w} height={size.h}
-          style={{ display: 'block', cursor: draggingRef.current ? 'grabbing' : 'grab' }}
+          style={{ display: 'block', cursor: 'grab' }}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}

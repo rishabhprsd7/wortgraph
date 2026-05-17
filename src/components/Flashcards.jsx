@@ -49,7 +49,7 @@ function buildQueue(cards) {
   return cards.map(c => ({ card: c, isReview: false, prevResult: null }));
 }
 
-export function Flashcards({ words: propWords, userId, sourceText, grammarTopics = [] }) {
+export function Flashcards({ words: propWords, userId, sourceText }) {
   const [cards, setCards] = useState([]);
   const [loading, setLoading] = useState(!propWords);
   // deck = { queue: [{card, isReview, prevResult}], idx, done }

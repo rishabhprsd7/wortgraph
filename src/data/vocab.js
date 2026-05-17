@@ -1,3 +1,6 @@
+// Brand colors for CEFR proficiency levels — shared across all views
+export const CEFR_COLOR = { B1: '#7f77dd', B2: '#5b8ff9', C1: '#1d9e75', C2: '#e24b4a' };
+
 export const flashcards = [
   {
     article: "die",
@@ -66,19 +69,3 @@ export const extractedWords = [
 ];
 
 export const sampleText = `Die Inflation in der Eurozone ist im April erneut leicht gestiegen. Verbraucher spüren die höheren Lebenshaltungskosten vor allem bei Lebensmitteln und Energie. Die Europäische Zentralbank hält am aktuellen Leitzins fest, um die Geldpolitik nicht zu lockern, bevor das Preisniveau stabil ist. Wirtschaftsforscher warnen vor einer möglichen Rezession, falls die Konjunktur weiter schwächelt.`;
-
-export const weakWords = [
-  { word: "der Sachverhalt", trans: "the matter, set of facts", retention: 42, level: "high" },
-  { word: "die Verkehrswende", trans: "transport transition", retention: 51, level: "high" },
-  { word: "der Wirkungsgrad", trans: "efficiency", retention: 58, level: "med" },
-  { word: "das Mitbestimmungsrecht", trans: "co-determination right", retention: 61, level: "med" },
-  { word: "die Konjunktur", trans: "economic situation", retention: 64, level: "med" }
-];
-
-export const activity = [
-  { type: "deck", text: "Added 12 words from Zeit Online article", time: "32m" },
-  { type: "review", text: "Completed review session — 18 cards", time: "2h" },
-  { type: "milestone", text: "Reached B2 mastery in Politics topic", time: "1d" },
-  { type: "deck", text: "Imported transcript from Lage der Nation #412", time: "2d" },
-  { type: "review", text: "Completed review session — 24 cards", time: "3d" }
-];

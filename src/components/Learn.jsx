@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { flashcards as staticCards } from '../data/vocab';
+import { flashcards as staticCards, CEFR_COLOR } from '../data/vocab';
 import { Flashcards } from './Flashcards';
 import { GrammarPanel } from './GrammarPanel';
 
@@ -24,8 +24,6 @@ ${snippet}`;
   const match = raw.match(/\[[\s\S]*\]/);
   return JSON.parse(match ? match[0] : raw);
 }
-
-const CEFR_COLOR = { B1: '#7f77dd', B2: '#5b8ff9', C1: '#1d9e75', C2: '#e24b4a' };
 
 function WordListView({ words }) {
   const [search, setSearch] = useState('');
@@ -393,7 +391,6 @@ export function Learn({ userId, setRoute }) {
                   words={words}
                   userId={userId}
                   sourceText={selectedSource ? sources.find(s => s.id === selectedSource)?.snippet : undefined}
-                  grammarTopics={selectedSource ? (sources.find(s => s.id === selectedSource)?.grammarTopics ?? []) : []}
                 />
         }
       </div>
