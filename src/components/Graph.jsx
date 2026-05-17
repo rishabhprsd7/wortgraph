@@ -193,7 +193,7 @@ export function Graph({ userId }) {
       <div
         ref={containerRef}
         style={{
-          position: 'relative', height: 600,
+          position: 'relative', height: 'calc(100vh - 280px)', minHeight: 500,
           border: 'var(--hairline)', borderRadius: 12,
           background: 'radial-gradient(ellipse at center, #1c1b2e 0%, #0f0f1a 100%)',
           overflow: 'hidden',
