@@ -156,19 +156,28 @@ export function Graph({ userId }) {
   const selectedNode = data.nodes.find(n => n.id === selected);
   const hoveredNode = data.nodes.find(n => n.id === hovered);
 
-  // Zoom on wheel
-  const handleWheel = (e) => {
-    e.preventDefault();
-    const rect = svgRef.current.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
-    const scaleFactor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
-    setTransform(prev => {
-      const newScale = Math.min(6, Math.max(0.15, prev.scale * scaleFactor));
-      const ratio = newScale / prev.scale;
-      return { x: mouseX - (mouseX - prev.x) * ratio, y: mouseY - (mouseY - prev.y) * ratio, scale: newScale };
-    });
-  };
+  // Wheel zoom — attached imperatively so we can use { passive: false }.
+  // React 19 makes onWheel passive by default; calling e.preventDefault() inside
+  // a passive listener throws silently and corrupts the event pipeline, causing
+  // the next click to crash the component.
+  useEffect(() => {
+    const el = svgRef.current;
+    if (!el) return;
+    const onWheel = (e) => {
+      e.preventDefault();
+      const rect = el.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      const scaleFactor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+      setTransform(prev => {
+        const newScale = Math.min(6, Math.max(0.15, prev.scale * scaleFactor));
+        const ratio = newScale / prev.scale;
+        return { x: mouseX - (mouseX - prev.x) * ratio, y: mouseY - (mouseY - prev.y) * ratio, scale: newScale };
+      });
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
 
   // Pan on drag
   const handleMouseDown = (e) => {
@@ -258,7 +267,6 @@ export function Graph({ userId }) {
           ref={svgRef}
           width={size.w} height={size.h}
           style={{ display: 'block', cursor: draggingRef.current ? 'grabbing' : 'grab' }}
-          onWheel={handleWheel}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
