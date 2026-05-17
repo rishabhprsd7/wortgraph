@@ -125,6 +125,7 @@ export function Nav({ route, setRoute, dark, userId, onSwitchUser, onTryDemo }) 
     { id: "explore", label: "Explore" },
     { id: "crossword", label: "Play" },
     { id: "progress", label: "Progress" },
+    { id: "graph", label: "Graph" },
     { id: "agent", label: "AI Coach" },
     { id: "about", label: "About" },
   ];
@@ -165,7 +166,7 @@ export function Nav({ route, setRoute, dark, userId, onSwitchUser, onTryDemo }) 
         </span>
         {userId
           ? <UserMenu userId={userId} dark={dark} onSwitchUser={onSwitchUser} onTryDemo={onTryDemo} />
-          : <button className={`btn btn-sm ${dark ? "btn-ghost-dark" : "btn-ghost"}`}>Sign in</button>
+          : null
         }
       </div>
     </nav>

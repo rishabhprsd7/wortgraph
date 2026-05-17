@@ -319,10 +319,16 @@ function SemanticSearch() {
           ))}
         </div>
 
-        {error && <p style={{ color: 'var(--red)', fontSize: 13, margin: 0 }}>{error.includes('GEMINI_KEY') ? 'Add GEMINI_KEY to server .env to enable semantic search.' : error}</p>}
+        {error && (
+          <div style={{ fontSize: 13, color: 'var(--amber)', background: 'var(--amber-soft)', borderRadius: 8, padding: '10px 14px' }}>
+            {error.includes('GEMINI_KEY') || error.includes('embed') || error.includes('500')
+              ? 'Semantic search needs vector embeddings configured on the server.'
+              : error}
+          </div>
+        )}
 
         {searched && results.length === 0 && !error && (
-          <p style={{ fontSize: 13, color: 'var(--ink-3)', margin: 0 }}>No results — embed your words first via POST /api/embed/words</p>
+          <p style={{ fontSize: 13, color: 'var(--ink-3)', margin: 0 }}>No matching words found — try a different term or add more vocabulary to your deck.</p>
         )}
 
         {results.length > 0 && (
@@ -443,7 +449,11 @@ export function Agent({ userId }) {
           </button>
         </div>
         <div className="panel-b">
-          {error && <div style={{ color: 'var(--red)', fontSize: 13 }}>{error}</div>}
+            {error && (
+            <div style={{ fontSize: 13, color: 'var(--ink-3)', padding: '12px 16px', background: 'var(--bg-3)', borderRadius: 8 }}>
+              {error.includes('configured') ? 'Connect the backend API to unlock graph-powered insights.' : error}
+            </div>
+          )}
           {loading && <div style={{ color: 'var(--ink-3)', fontSize: 13 }}>Traversing your graph…</div>}
           {data && !loading && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>

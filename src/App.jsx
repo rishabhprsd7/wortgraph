@@ -151,6 +151,7 @@ export default function App() {
   const handleTryDemo = () => {
     localStorage.setItem('wg_user', 'demo');
     setUserId('demo');
+    setRoute('learn');
   };
 
   return (

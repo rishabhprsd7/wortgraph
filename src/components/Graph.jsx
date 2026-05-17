@@ -125,7 +125,7 @@ export function Graph({ userId }) {
   }, []);
 
   const fetchGraph = async () => {
-    if (!API_URL) { setError('API not configured'); setLoading(false); return; }
+    if (!API_URL) { setLoading(false); return; }
     setLoading(true);
     setError(null);
     try {
@@ -253,13 +253,17 @@ export function Graph({ userId }) {
           </div>
         )}
         {error && (
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#e24b4a', fontSize: 13 }}>
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.45)', fontSize: 13, padding: 30, textAlign: 'center' }}>
             {error}
           </div>
         )}
         {!loading && !error && data.nodes.length === 0 && (
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.5)', fontSize: 13, padding: 30, textAlign: 'center' }}>
-            No graph yet. Extract words from a few sources to see your vocabulary network form.
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, padding: 30, textAlign: 'center' }}>
+            <div style={{ fontSize: 36 }}>🕸️</div>
+            <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 15, fontWeight: 600 }}>Your vocabulary graph will appear here</div>
+            <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, maxWidth: 320 }}>
+              Extract words from a few German texts in Explore — each source adds nodes and connections to your personal graph.
+            </div>
           </div>
         )}
 
