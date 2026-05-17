@@ -26,8 +26,8 @@ export function Landing({ setRoute }) {
             </div>
             <div className="hero-stats">
               <div>
-                <div className="hero-stat-num">2,400+</div>
-                <div className="hero-stat-lbl">Words in graph</div>
+                <div className="hero-stat-num">Neo4j</div>
+                <div className="hero-stat-lbl">Knowledge graph</div>
               </div>
               <div>
                 <div className="hero-stat-num">AI-powered</div>
@@ -113,10 +113,10 @@ export function Landing({ setRoute }) {
       <footer className="footer">
         <div>© Wortgraph · Built for serious learners</div>
         <div className="footer-links">
-          <span>Method</span>
-          <span>Pricing</span>
-          <span>Changelog</span>
-          <span>Contact</span>
+          <span style={{ cursor: 'pointer' }} onClick={() => setRoute('about')}>Method</span>
+          <span style={{ cursor: 'pointer' }} onClick={() => setRoute('agent')}>AI Coach</span>
+          <span style={{ cursor: 'pointer' }} onClick={() => setRoute('graph')}>Graph</span>
+          <a href="https://github.com/rishabhprsd7/wortgraph" target="_blank" rel="noopener noreferrer" style={{ cursor: 'pointer' }}>GitHub</a>
         </div>
       </footer>
     </>

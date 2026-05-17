@@ -543,6 +543,14 @@ a { color: inherit; text-decoration: none; }
   display: flex;
   gap: 22px;
 }
+.footer-links span,
+.footer-links a {
+  transition: color 120ms ease;
+}
+.footer-links span:hover,
+.footer-links a:hover {
+  color: var(--violet);
+}
 
 /* ──────────────── App layout (with sidebar) ──────────────── */
 .app-layout {

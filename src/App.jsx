@@ -107,8 +107,40 @@ export default function App() {
   const handleSetUser = (id) => {
     localStorage.setItem('wg_user', id);
     setUserId(id);
-    // New users land on Explore so they can immediately add vocabulary
-    if (id !== 'demo') setRoute('explore');
+    // New users → Explore (add vocab first). Demo users → Learn (populated deck).
+    setRoute(id === 'demo' ? 'learn' : 'explore');
+  };
+
+  const handleExport = async () => {
+    try {
+      let words = [], sources = [];
+      if (API_URL) {
+        const q = userId ? `?userId=${encodeURIComponent(userId)}` : '';
+        [words, sources] = await Promise.all([
+          fetch(`${API_URL}/api/words${q}`).then(r => r.json()).catch(() => []),
+          fetch(`${API_URL}/api/sources${q}`).then(r => r.json()).catch(() => []),
+        ]);
+      }
+      const payload = {
+        app: 'Wortgraph',
+        exportedAt: new Date().toISOString(),
+        user: userId || 'default',
+        wordCount: words.length,
+        sources,
+        words,
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `wortgraph-${userId || 'deck'}-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('Export failed:', e);
+    }
   };
 
   const handleSwitchUser = () => {
@@ -154,7 +186,7 @@ export default function App() {
                   sub={deckStats.wordCount > 0
                     ? `${deckStats.wordCount} words across ${deckStats.sources.length} source${deckStats.sources.length !== 1 ? 's' : ''}`
                     : 'Track your vocabulary growth and retention over time'}
-                  right={<button className="btn btn-ghost btn-sm">Export data</button>}
+                  right={<button className="btn btn-ghost btn-sm" onClick={handleExport}>Export data</button>}
                 />
                 <Dashboard userId={userId} />
               </>
