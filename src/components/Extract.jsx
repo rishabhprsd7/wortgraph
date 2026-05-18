@@ -122,7 +122,7 @@ async function validateCustomWords(wordList) {
 
 Each item must be:
 - {"word":"base lemma","valid":true,"article":"der/die/das or empty string for verbs/adjectives","cefr":"A2/B1/B2/C1/C2","translation":"English meaning in 2-4 words","example":"one sentence (10-16 words) showing the word in context","exampleTranslation":"natural English translation"}
-- {"word":"original input","valid":false,"reason":"why it is not a valid German word"}
+- {"word":"original input","valid":false,"reason":"why it is not a valid German word","suggestion":"the closest real German word the user likely meant (base lemma form), or null if no clear match"}
 
 Words to validate: ${list}`;
 
@@ -228,6 +228,23 @@ export function Extract({ userId }) {
       saveExtracted(valid);
       setInvalidWords(invalid);
       saveAdded(() => new Set(valid.map(w => w.word)));
+    } catch (e) {
+      setError(`Error: ${e.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addSuggestion = async (suggestion) => {
+    setLoading(true);
+    try {
+      const results = await withRetry(() => validateCustomWords([suggestion]));
+      const valid = results.filter(r => r.valid);
+      if (valid.length > 0) {
+        saveExtracted(prev => [...prev, ...valid.filter(v => !prev.find(p => p.word === v.word))]);
+        saveAdded(prev => { const next = new Set(prev); valid.forEach(v => next.add(v.word)); return next; });
+        setInvalidWords(prev => prev.filter(w => w.suggestion !== suggestion));
+      }
     } catch (e) {
       setError(`Error: ${e.message}`);
     } finally {
@@ -375,7 +392,26 @@ export function Extract({ userId }) {
 
       {invalidWords.length > 0 && (
         <div style={{ marginTop: 12, padding: '10px 16px', borderRadius: 8, background: '#fff8e6', border: '1px solid #f0c040', fontSize: 13, color: '#7a5800' }}>
-          <b>Not valid German words:</b> {invalidWords.map(w => `${w.word}${w.reason ? ` (${w.reason})` : ''}`).join(' · ')}
+          <b>Couldn't find:</b>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 6 }}>
+            {invalidWords.map(w => (
+              <div key={w.word} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <span style={{ fontStyle: 'italic' }}>{w.word}</span>
+                {w.suggestion && (
+                  <>
+                    <span style={{ color: '#a07000' }}>— Did you mean</span>
+                    <button
+                      onClick={() => addSuggestion(w.suggestion)}
+                      style={{ background: 'var(--violet)', color: '#fff', border: 'none', borderRadius: 6, padding: '2px 10px', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}
+                    >
+                      {w.suggestion}
+                    </button>
+                    <span style={{ color: '#a07000' }}>?</span>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
