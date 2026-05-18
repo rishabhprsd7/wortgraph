@@ -120,30 +120,35 @@ function UserMenu({ userId, dark, onSwitchUser, onTryDemo }) {
 
 export function Nav({ route, setRoute, dark, userId, onSwitchUser, onTryDemo }) {
   const { days, streak } = useStreakData(userId);
-  const links = [
+  const primaryLinks = [
     { id: "learn", label: "Learn" },
     { id: "explore", label: "Explore" },
     { id: "crossword", label: "Play" },
-    { id: "progress", label: "Progress" },
+  ];
+  const secondaryLinks = [
     { id: "graph", label: "Graph" },
     { id: "agent", label: "AI Coach" },
     { id: "about", label: "About" },
+    { id: "progress", label: "Progress" },
   ];
+  const renderLink = l => (
+    <span
+      key={l.id}
+      className={`nav-link${route === l.id ? " active" : ""}`}
+      onClick={() => setRoute(l.id)}
+    >
+      {l.label}
+    </span>
+  );
   return (
     <nav className={`nav${dark ? " dark" : ""}`}>
       <div onClick={() => setRoute("home")} style={{ cursor: "pointer" }}>
         <Logo dark={dark} />
       </div>
       <div className="nav-links">
-        {links.map(l => (
-          <span
-            key={l.id}
-            className={`nav-link${route === l.id ? " active" : ""}`}
-            onClick={() => setRoute(l.id)}
-          >
-            {l.label}
-          </span>
-        ))}
+        <div className="nav-group">{primaryLinks.map(renderLink)}</div>
+        <span className="nav-divider" aria-hidden="true" />
+        <div className="nav-group">{secondaryLinks.map(renderLink)}</div>
       </div>
       <div className="nav-right">
         <span className="streak" title={streak > 0 ? `${streak}-day streak` : 'Start streak'}>
