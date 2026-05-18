@@ -118,11 +118,13 @@ async function saveWordsToDeck(words, source, snippet, userId, grammarTopics) {
 
 async function validateCustomWords(wordList) {
   const list = wordList.join(', ');
-  const prompt = `You are a German language expert. For each word in this list, check if it is a real German word. If valid, generate a full vocabulary entry. Return ONLY a JSON array, no markdown.
+  const prompt = `You are a German language expert AND a spell-corrector. For each word in this list, check if it is a real German word. If valid, generate a full vocabulary entry. Return ONLY a JSON array, no markdown.
 
 Each item must be:
 - {"word":"base lemma","valid":true,"article":"der/die/das or empty string for verbs/adjectives","cefr":"A2/B1/B2/C1/C2","translation":"English meaning in 2-4 words","example":"one sentence (10-16 words) showing the word in context","exampleTranslation":"natural English translation"}
-- {"word":"original input","valid":false,"reason":"why it is not a valid German word","suggestion":"the closest real German word the user likely meant (base lemma form), or null if no clear match"}
+- {"word":"original input","valid":false,"reason":"short reason","suggestion":"REQUIRED: the single closest real German word the user most likely intended, in base lemma form. Always make your best guess by sound and spelling even if you are unsure. Never use null, never leave it empty."}
+
+The suggestion field must ALWAYS contain a real German word — treat misspellings like a search engine's "did you mean". Example: input "gehobenich" → suggestion "gehoben". Input "freundschft" → suggestion "Freundschaft".
 
 Words to validate: ${list}`;
 
@@ -397,7 +399,7 @@ export function Extract({ userId }) {
             {invalidWords.map(w => (
               <div key={w.word} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 <span style={{ fontStyle: 'italic' }}>{w.word}</span>
-                {w.suggestion && (
+                {w.suggestion && w.suggestion.toLowerCase() !== w.word.toLowerCase() ? (
                   <>
                     <span style={{ color: '#a07000' }}>— Did you mean</span>
                     <button
@@ -408,6 +410,8 @@ export function Extract({ userId }) {
                     </button>
                     <span style={{ color: '#a07000' }}>?</span>
                   </>
+                ) : (
+                  w.reason && <span style={{ color: '#a07000' }}>— {w.reason}</span>
                 )}
               </div>
             ))}
