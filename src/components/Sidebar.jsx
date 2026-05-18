@@ -4,7 +4,7 @@ export function Sidebar({ route, setRoute, counts, sources = [] }) {
   const items = [
     { id: "learn", label: "Learn", icon: <IconLearn />, count: counts.due || null },
     { id: "explore", label: "Explore", icon: <IconExplore /> },
-    { id: "crossword", label: "Play", icon: <span style={{ fontSize: 15 }}>⊞</span> },
+    { id: "arena", label: "Arena", icon: <span style={{ fontSize: 15 }}>⊞</span> },
     { id: "progress", label: "Progress", icon: <IconProgress /> },
     { id: "graph", label: "Graph", icon: <IconGraph /> },
     { id: "agent", label: "AI Coach", icon: <span style={{ fontSize: 16 }}>✦</span> }

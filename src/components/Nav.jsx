@@ -123,7 +123,7 @@ export function Nav({ route, setRoute, dark, userId, onSwitchUser, onTryDemo }) 
   const primaryLinks = [
     { id: "learn", label: "Learn" },
     { id: "explore", label: "Explore" },
-    { id: "crossword", label: "Play" },
+    { id: "arena", label: "Arena" },
   ];
   const secondaryLinks = [
     { id: "graph", label: "Graph" },

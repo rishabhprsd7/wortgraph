@@ -11,7 +11,7 @@ import { Dashboard } from './components/Dashboard';
 import { Agent } from './components/Agent';
 import { Graph } from './components/Graph';
 import { About } from './components/About';
-import { Crossword } from './components/Crossword';
+import { Arena } from './components/Arena';
 
 function ScreenHeader({ title, sub, right }) {
   return (
@@ -210,10 +210,10 @@ export default function App() {
                 <Agent userId={userId} />
               </>
             )}
-            {route === 'crossword' && (
+            {route === 'arena' && (
               <>
-                <ScreenHeader title="Crossword" sub="Your hardest words, turned into a puzzle — AI-generated clues" />
-                <Crossword userId={userId} setRoute={setRoute} />
+                <ScreenHeader title="Arena" sub="Pick a game — each one is built from your vocabulary graph" />
+                <Arena userId={userId} setRoute={setRoute} />
               </>
             )}
             {route === 'about' && (
