@@ -1,25 +1,31 @@
-// Game registry — the Arena shell renders whatever is listed here.
+// Game registry — the Arena shell and the planner agent both read this list.
 //
-// Each entry:
-//   id          unique key (also used by the planner agent in later phases)
-//   label       short title shown on the picker card
-//   blurb       one-line description
-//   tag         'graph' = showcases Neo4j, 'classic' = graph-light
-//   selfContained = true  → Component manages its own data + phases,
-//                            receives { userId, setRoute }
-//   (shell-driven games added in phase 2 use generate(ctx) + onAnswer/onNext)
+// Shell-driven game:
+//   generate(ctx) → { data } | { error, message }   ctx = { userId, exclude, deck }
+//   Component({ data, onAnswer })  — calls onAnswer(correct) once per round
+//   reviewWord(data) → lemma | null  — word to write retention back to
+//   needsDeck: true  — client games; Arena loads the deck and passes ctx.deck
+//   tag: 'graph' (showcases Neo4j) | 'classic' (graph-light)
+//
+// Self-contained game (crossword): manages its own data + phases,
+//   Component({ userId, setRoute }); selfContained: true
 
 import { Crossword } from '../components/Crossword';
+import { oddOneOut } from './oddOneOut';
+import { synonym } from './synonym';
+import { fillBlank } from './fillBlank';
+import { article } from './article';
+import { match } from './match';
 
-export const GAMES = [
-  {
-    id: 'crossword',
-    label: 'Crossword',
-    blurb: 'Your hardest words turned into a puzzle with AI-generated clues',
-    tag: 'classic',
-    selfContained: true,
-    Component: Crossword,
-  },
-];
+const crossword = {
+  id: 'crossword',
+  label: 'Crossword',
+  blurb: 'Your hardest words turned into a puzzle with AI-generated clues.',
+  tag: 'classic',
+  selfContained: true,
+  Component: Crossword,
+};
+
+export const GAMES = [oddOneOut, synonym, fillBlank, match, article, crossword];
 
 export const getGame = id => GAMES.find(g => g.id === id) || null;

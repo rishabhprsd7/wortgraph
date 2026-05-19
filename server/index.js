@@ -561,6 +561,134 @@ app.post('/api/backfill', async (req, res) => {
   }
 });
 
+// ── Arena: graph-powered games ────────────────────────────────────────────────
+// Every game here is BUILT from the Neo4j vector index — the semantic structure
+// of the graph is the gameplay, not a backend detail. Each endpoint returns the
+// exact Cypher it ran so the UI can show players how the graph powers the game.
+
+const NEIGHBOR_CYPHER = `CALL db.index.vector.queryNodes('word_embeddings', 40, $embedding)
+YIELD node AS w, score
+WHERE w.lemma <> $anchor
+RETURN w.lemma AS word, w.article AS article, w.translation AS translation,
+       w.cefr AS cefr, score
+ORDER BY score DESC`;
+
+async function pickAnchor(userId, { withExample = false, exclude = [] } = {}) {
+  const recs = await runQuery(`
+    MATCH (u:User {id: $userId})-[:ADDED]->(w:Word)
+    WHERE w.embedding IS NOT NULL AND NOT w.lemma IN $exclude
+      ${withExample ? "AND w.example IS NOT NULL AND w.example <> '' AND toLower(w.example) CONTAINS toLower(w.lemma)" : ''}
+    RETURN w.lemma AS lemma, w.embedding AS embedding, w.article AS article,
+           w.translation AS translation, w.cefr AS cefr,
+           w.example AS example, w.exampleTranslation AS exampleTranslation
+    ORDER BY rand() LIMIT 1
+  `, { userId, exclude });
+  return recs[0] || null;
+}
+
+async function neighbors(anchor) {
+  const recs = await runQuery(NEIGHBOR_CYPHER, {
+    embedding: anchor.get('embedding'), anchor: anchor.get('lemma'),
+  });
+  return recs.map(r => ({
+    word: r.get('word'), article: r.get('article') || '',
+    translation: r.get('translation') || '', cefr: r.get('cefr') || '',
+    score: Math.round(num(r.get('score')) * 100) / 100,
+  }));
+}
+
+const shuffle = a => a.map(v => [Math.random(), v]).sort((x, y) => x[0] - y[0]).map(p => p[1]);
+
+function arenaGuard(req, res) {
+  if (!process.env.GEMINI_KEY) {
+    res.status(503).json({ error: 'unembedded', message: 'Semantic games need GEMINI_KEY configured.' });
+    return false;
+  }
+  return true;
+}
+
+const splitExclude = q => (q ? String(q).split(',').filter(Boolean) : []);
+
+// Odd One Out — 3 semantically tight words + 1 outlier from the vector index.
+app.get('/api/arena/odd-one-out', async (req, res) => {
+  if (!arenaGuard(req, res)) return;
+  const { userId = 'default', exclude } = req.query;
+  try {
+    const anchorRec = await pickAnchor(userId, { exclude: splitExclude(exclude) });
+    if (!anchorRec) return res.status(503).json({ error: 'unembedded', message: 'No embedded words yet — add words in Explore.' });
+    const ns = await neighbors(anchorRec);
+    if (ns.length < 4) return res.status(503).json({ error: 'unembedded', message: 'Not enough embedded words yet — add more in Explore.' });
+
+    const anchor = {
+      word: anchorRec.get('lemma'), article: anchorRec.get('article') || '',
+      translation: anchorRec.get('translation') || '', cefr: anchorRec.get('cefr') || '',
+    };
+    const group = [anchor, ns[0], ns[1]];          // semantically close
+    const odd = ns[ns.length - 1];                 // furthest in meaning
+    res.json({
+      type: 'odd-one-out',
+      options: shuffle([...group, odd]).map(w => ({ key: w.word, ...w })),
+      answer: odd.word,
+      anchor: anchor.word,
+      cypher: NEIGHBOR_CYPHER,
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Synonym Sprint — nearest neighbour vs. distant words.
+app.get('/api/arena/synonym', async (req, res) => {
+  if (!arenaGuard(req, res)) return;
+  const { userId = 'default', exclude } = req.query;
+  try {
+    const anchorRec = await pickAnchor(userId, { exclude: splitExclude(exclude) });
+    if (!anchorRec) return res.status(503).json({ error: 'unembedded', message: 'No embedded words yet — add words in Explore.' });
+    const ns = await neighbors(anchorRec);
+    if (ns.length < 4) return res.status(503).json({ error: 'unembedded', message: 'Not enough embedded words yet — add more in Explore.' });
+
+    const correct = ns[0];
+    const far = ns.slice(-3);
+    res.json({
+      type: 'synonym',
+      anchor: {
+        word: anchorRec.get('lemma'), article: anchorRec.get('article') || '',
+        translation: anchorRec.get('translation') || '',
+      },
+      options: shuffle([correct, ...far]).map(w => ({ key: w.word, ...w })),
+      answer: correct.word,
+      cypher: NEIGHBOR_CYPHER,
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Fill in the Blank — real example sentence; distractors are close neighbours.
+app.get('/api/arena/fill-blank', async (req, res) => {
+  if (!arenaGuard(req, res)) return;
+  const { userId = 'default', exclude } = req.query;
+  try {
+    const anchorRec = await pickAnchor(userId, { withExample: true, exclude: splitExclude(exclude) });
+    if (!anchorRec) return res.status(503).json({ error: 'unembedded', message: 'Need words with example sentences — add more in Explore.' });
+    const ns = await neighbors(anchorRec);
+    if (ns.length < 3) return res.status(503).json({ error: 'unembedded', message: 'Not enough embedded words yet — add more in Explore.' });
+
+    const lemma = anchorRec.get('lemma');
+    const example = anchorRec.get('example');
+    const safeLemma = lemma.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const sentence = example.replace(new RegExp(safeLemma, 'i'), '———');
+    const distractors = ns.slice(0, 3);
+    res.json({
+      type: 'fill-blank',
+      sentence,
+      hint: anchorRec.get('exampleTranslation') || '',
+      options: shuffle([
+        { word: lemma, article: anchorRec.get('article') || '', translation: anchorRec.get('translation') || '' },
+        ...distractors,
+      ]).map(w => ({ key: w.word, ...w })),
+      answer: lemma,
+      cypher: NEIGHBOR_CYPHER,
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── Start ─────────────────────────────────────────────────────────────────────
 
 const PORT = process.env.PORT || 3001;
