@@ -121,15 +121,17 @@ function UserMenu({ userId, dark, onSwitchUser, onTryDemo }) {
 export function Nav({ route, setRoute, dark, userId, onSwitchUser, onTryDemo, theme, onToggleTheme }) {
   const { days, streak } = useStreakData(userId);
   const primaryLinks = [
-    { id: "learn", label: "Learn" },
     { id: "explore", label: "Explore" },
+    { id: "learn", label: "Learn" },
     { id: "arena", label: "Arena" },
+  ];
+  const middleLinks = [
+    { id: "agent", label: "AI Coach" },
+    { id: "progress", label: "Progress" },
   ];
   const secondaryLinks = [
     { id: "graph", label: "Graph" },
-    { id: "agent", label: "AI Coach" },
     { id: "about", label: "About" },
-    { id: "progress", label: "Progress" },
   ];
   const renderLink = l => (
     <span
@@ -147,6 +149,8 @@ export function Nav({ route, setRoute, dark, userId, onSwitchUser, onTryDemo, th
       </div>
       <div className="nav-links">
         <div className="nav-group">{primaryLinks.map(renderLink)}</div>
+        <span className="nav-divider" aria-hidden="true" />
+        <div className="nav-group">{middleLinks.map(renderLink)}</div>
         <span className="nav-divider" aria-hidden="true" />
         <div className="nav-group">{secondaryLinks.map(renderLink)}</div>
       </div>
