@@ -18,9 +18,18 @@ export const article = {
   },
   Component: ({ data, onAnswer }) => (
     <ChoiceRound
-      prompt={<>Which article? <b>___ {data.word}</b></>}
-      hint={data.translation && `“${data.translation}”`}
-      options={ARTICLES.map(a => ({ key: a, label: a }))}
+      prompt={
+        <div className="article-hero">
+          <span className="article-hero-prefix">Which article?</span>
+          <span className="article-hero-word">
+            <span className="article-hero-blank">___</span> {data.word}
+          </span>
+          {data.translation && <span className="article-hero-translation">“{data.translation}”</span>}
+        </div>
+      }
+      gridClass="three-up"
+      variantClass="art"
+      options={ARTICLES.map(a => ({ key: a, label: a, variant: a }))}
       answerKey={data.article}
       onResult={onAnswer}
     />

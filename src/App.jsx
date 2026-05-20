@@ -91,6 +91,13 @@ export default function App() {
   const [route, setRoute] = useState('home');
   const [userId, setUserId] = useState(() => localStorage.getItem('wg_user'));
   const [deckStats, setDeckStats] = useState({ due: 0, wordCount: 0, sources: [] });
+  const [theme, setTheme] = useState(() => localStorage.getItem('wg_theme') || 'light');
+
+  useEffect(() => {
+    document.body.classList.toggle('dark', theme === 'dark');
+    localStorage.setItem('wg_theme', theme);
+  }, [theme]);
+  const toggleTheme = () => setTheme(t => t === 'dark' ? 'light' : 'dark');
 
   useEffect(() => {
     if (!userId || !API_URL) return;
@@ -158,8 +165,9 @@ export default function App() {
     <div className="app">
       {!userId && <WelcomeModal onSubmit={handleSetUser} />}
       <Nav
-        route={route} setRoute={setRoute} dark={route === 'home'}
+        route={route} setRoute={setRoute} dark={route === 'home' || theme === 'dark'}
         userId={userId} onSwitchUser={handleSwitchUser} onTryDemo={handleTryDemo}
+        theme={theme} onToggleTheme={toggleTheme}
       />
 
       {route === 'home' ? (

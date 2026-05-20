@@ -165,9 +165,15 @@ function ShellGame({ game, userId, setRoute }) {
       <div className="arena-scorebar">
         <span className="arena-score-name">{game.label}</span>
         <span className="arena-score-stats">
-          <span title="current streak">🔥 {score.streak}</span>
-          <span title="correct / total">✓ {score.correct}/{score.total}</span>
-          <span title="best streak">★ {score.best}</span>
+          <span className="arena-stat streak" title="current streak">
+            <span className="arena-stat-ico">🔥</span>{score.streak}
+          </span>
+          <span className="arena-stat correct" title="correct / total">
+            <span className="arena-stat-ico">✓</span>{score.correct}/{score.total}
+          </span>
+          <span className="arena-stat best" title="best streak">
+            <span className="arena-stat-ico">★</span>{score.best}
+          </span>
         </span>
       </div>
 
