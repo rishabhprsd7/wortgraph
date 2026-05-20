@@ -347,7 +347,7 @@ export function Learn({ userId, setRoute }) {
                 onClick={() => setView(v)}
                 style={{
                   padding: '5px 14px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13,
-                  background: view === v ? '#fff' : 'transparent',
+                  background: view === v ? 'var(--bg)' : 'transparent',
                   color: view === v ? 'var(--ink)' : 'var(--ink-3)',
                   fontWeight: view === v ? 600 : 400,
                   boxShadow: view === v ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',

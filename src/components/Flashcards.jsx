@@ -240,7 +240,7 @@ export function Flashcards({ words: propWords, userId, sourceText }) {
             {isReview && prevResult === 'no' ? (
               <span className="face-corner" style={{ background: 'rgba(226,75,74,0.12)', color: 'var(--red)', padding: '2px 9px', borderRadius: 999, fontWeight: 600 }}>Don't know</span>
             ) : isReview ? (
-              <span className="face-corner" style={{ background: 'rgba(216,162,61,0.15)', color: '#8a6200', padding: '2px 9px', borderRadius: 999, fontWeight: 600 }}>Review</span>
+              <span className="face-corner" style={{ background: 'rgba(216,162,61,0.18)', color: 'var(--amber-text)', padding: '2px 9px', borderRadius: 999, fontWeight: 600 }}>Review</span>
             ) : (
               <span className="face-corner">FRONT</span>
             )}

@@ -179,7 +179,7 @@ export function GrammarPanel({ grammarTopics = [], compact = false }) {
                     )}
                     {/* One more example */}
                     {exp.oneMore && (
-                      <div style={{ padding: '10px 12px', borderRadius: 6, background: 'rgba(255,255,255,0.7)', border: '0.5px solid var(--violet-line)' }}>
+                      <div style={{ padding: '10px 12px', borderRadius: 6, background: 'var(--bg-2)', border: '0.5px solid var(--violet-line)' }}>
                         <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', lineHeight: 1.5 }}>{exp.oneMore.de}</div>
                         <div style={{ fontSize: 12, color: 'var(--ink-3)', fontStyle: 'italic', marginTop: 2 }}>{exp.oneMore.en}</div>
                       </div>

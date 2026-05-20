@@ -28,6 +28,15 @@
   --red-soft: #fbe7e6;
   --amber: #ba7517;
   --amber-soft: #f7ecdb;
+  --amber-text: #7a5800;
+  --amber-text-dim: #a07000;
+
+  --cw-grid-bg: #d8d3f5;
+  --cw-cell-bg: #c4bff0;
+  --cw-cell-num: #c4bff0;
+  --cw-hint-bg: #fdf2f8;
+  --cw-hint-border: #f9a8d4;
+  --cw-hint-text: #b5006e;
 
   --r-sm: 6px;
   --r: 8px;
@@ -68,6 +77,14 @@ body.dark {
   --amber-soft:  rgba(186,117,23,0.22);
   --hairline: 0.5px solid rgba(255,255,255,0.10);
   --hairline-strong: 0.5px solid rgba(255,255,255,0.18);
+  --amber-text:     #f0c870;
+  --amber-text-dim: rgba(240,200,112,0.78);
+  --cw-grid-bg: rgba(127,119,221,0.20);
+  --cw-cell-bg: rgba(127,119,221,0.35);
+  --cw-cell-num: rgba(196,191,240,0.7);
+  --cw-hint-bg: rgba(233,30,99,0.18);
+  --cw-hint-border: rgba(245,163,192,0.45);
+  --cw-hint-text: #ffa9c8;
   color-scheme: dark;
 }
 

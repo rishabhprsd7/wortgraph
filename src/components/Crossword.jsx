@@ -392,24 +392,24 @@ export function Crossword({ userId, setRoute }) {
         <div style={{
           display:'inline-grid',
           gridTemplateColumns:`repeat(${cw.cols},${CELL}px)`,
-          gap:2, background:'#d8d3f5',
-          border:'3px solid #c4bff0', borderRadius:10,
+          gap:2, background:'var(--cw-grid-bg)',
+          border:'3px solid var(--cw-cell-bg)', borderRadius:10,
           padding:2,
         }}>
           {cw.grid.map((row,r)=>row.map((cell,c)=>{
             const st = cellState(r,c);
             if (st==='black') return (
-              <div key={`${r}-${c}`} style={{width:CELL,height:CELL,background:'#c4bff0',borderRadius:3}} />
+              <div key={`${r}-${c}`} style={{width:CELL,height:CELL,background:'var(--cw-cell-bg)',borderRadius:3}} />
             );
             const {locked,isGiven,isActive,inWord,isCorrect,isRevealed} = st;
             const num = cw.numGrid[r][c];
             let bg, color;
             if (isActive) { bg='#ffe04b'; color='#1a1440'; }
-            else if (inWord) { bg='#fff9cc'; color='var(--ink)'; }
+            else if (inWord) { bg='#fff9cc'; color='#1a1440'; }
             else if (isCorrect) { bg='#b8f5d8'; color='#0d6e44'; }
             else if (isRevealed) { bg='#ffd4e8'; color='#b5006e'; }
             else if (isGiven) { bg='#ede9fb'; color='#5b50b8'; }
-            else { bg='#fff'; color='var(--ink)'; }
+            else { bg='var(--bg)'; color='var(--ink)'; }
             return (
               <div key={`${r}-${c}`} onClick={()=>handleCellClick(r,c)}
                 style={{width:CELL,height:CELL,background:bg,position:'relative',cursor:'pointer',borderRadius:3,
@@ -421,7 +421,7 @@ export function Crossword({ userId, setRoute }) {
                 {showHints && !userGrid[r]?.[c] && !locked && !isGiven && (
                   <span style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',
                     fontSize:13,fontWeight:700,textTransform:'uppercase',pointerEvents:'none',
-                    color:'#c4bff0', paddingTop:6,
+                    color:'var(--cw-cell-num)', paddingTop:6,
                   }}>
                     {cw.grid[r][c]}
                   </span>
@@ -498,7 +498,7 @@ export function Crossword({ userId, setRoute }) {
                       {isSolved && <span style={{color:'#0d6e44',fontSize:14}}>✓</span>}
                       {isRev && (
                         <button onClick={e=>{e.stopPropagation();unrevealWord(idx);}}
-                          style={{fontSize:10,padding:'2px 6px',borderRadius:4,border:'0.5px solid #f9a8d4',background:'#fdf2f8',color:'#b5006e',cursor:'pointer',fontWeight:600}}>
+                          style={{fontSize:10,padding:'2px 6px',borderRadius:4,border:'0.5px solid var(--cw-hint-border)',background:'var(--cw-hint-bg)',color:'var(--cw-hint-text)',cursor:'pointer',fontWeight:600}}>
                           Unreveal
                         </button>
                       )}

@@ -353,11 +353,11 @@ export function Extract({ userId }) {
         {isUrl && (
           <div style={{
             margin: '8px 0', padding: '12px 14px', borderRadius: 10,
-            background: '#fff8e6', border: '1px solid #f0c040',
-            fontSize: 13, color: '#7a5800', lineHeight: 1.6,
+            background: 'var(--amber-soft)', border: '1px solid rgba(186,117,23,0.40)',
+            fontSize: 13, color: 'var(--amber-text)', lineHeight: 1.6,
           }}>
             <b>Paste the transcript, not the URL.</b> Wortgraph reads text — URLs contain no words to extract.
-            <div style={{ marginTop: 6, color: '#5a4200' }}>
+            <div style={{ marginTop: 6, color: 'var(--amber-text-dim)' }}>
               {source === 'YouTube' && <span><b>YouTube:</b> open the video → click <b>···</b> below the title → <b>Show transcript</b> → select all → paste here.</span>}
               {source === 'Text' && <span><b>Text:</b> open the article, select all text and paste it here.</span>}
             </div>
@@ -393,7 +393,7 @@ export function Extract({ userId }) {
       )}
 
       {invalidWords.length > 0 && (
-        <div style={{ marginTop: 12, padding: '10px 16px', borderRadius: 8, background: '#fff8e6', border: '1px solid #f0c040', fontSize: 13, color: '#7a5800' }}>
+        <div style={{ marginTop: 12, padding: '10px 16px', borderRadius: 8, background: 'var(--amber-soft)', border: '1px solid rgba(186,117,23,0.40)', fontSize: 13, color: 'var(--amber-text)' }}>
           <b>Couldn't find:</b>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 6 }}>
             {invalidWords.map(w => (
@@ -401,17 +401,17 @@ export function Extract({ userId }) {
                 <span style={{ fontStyle: 'italic' }}>{w.word}</span>
                 {w.suggestion && w.suggestion.toLowerCase() !== w.word.toLowerCase() ? (
                   <>
-                    <span style={{ color: '#a07000' }}>— Did you mean</span>
+                    <span style={{ color: 'var(--amber-text-dim)' }}>— Did you mean</span>
                     <button
                       onClick={() => addSuggestion(w.suggestion)}
                       style={{ background: 'var(--violet)', color: '#fff', border: 'none', borderRadius: 6, padding: '2px 10px', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}
                     >
                       {w.suggestion}
                     </button>
-                    <span style={{ color: '#a07000' }}>?</span>
+                    <span style={{ color: 'var(--amber-text-dim)' }}>?</span>
                   </>
                 ) : (
-                  w.reason && <span style={{ color: '#a07000' }}>— {w.reason}</span>
+                  w.reason && <span style={{ color: 'var(--amber-text-dim)' }}>— {w.reason}</span>
                 )}
               </div>
             ))}

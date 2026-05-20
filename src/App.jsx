@@ -38,7 +38,7 @@ function WelcomeModal({ onSubmit }) {
       backdropFilter: 'blur(4px)',
     }}>
       <div style={{
-        background: '#fff', borderRadius: 16, padding: '40px 36px', width: 360,
+        background: 'var(--bg-2)', borderRadius: 16, padding: '40px 36px', width: 360,
         boxShadow: '0 24px 60px rgba(0,0,0,0.18)', display: 'flex', flexDirection: 'column', gap: 20,
       }}>
         <div>
