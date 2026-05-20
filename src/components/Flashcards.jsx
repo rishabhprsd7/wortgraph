@@ -234,17 +234,8 @@ export function Flashcards({ words: propWords, userId, sourceText }) {
 
           {/* Front */}
           <div
-            className="face face-front"
-            style={{
-              justifyContent: 'space-between',
-              ...(isReview && prevResult === 'no' ? {
-                background: 'linear-gradient(180deg, #fff5f5 0%, #fde8e8 100%)',
-                borderColor: '#f0c4c4',
-              } : isReview ? {
-                background: 'linear-gradient(180deg, #fffdf0 0%, #fef6da 100%)',
-                borderColor: '#e5d48a',
-              } : {}),
-            }}
+            className={`face face-front${isReview && prevResult === 'no' ? ' face-review-no' : isReview ? ' face-review' : ''}`}
+            style={{ justifyContent: 'space-between' }}
           >
             {isReview && prevResult === 'no' ? (
               <span className="face-corner" style={{ background: 'rgba(226,75,74,0.12)', color: 'var(--red)', padding: '2px 9px', borderRadius: 999, fontWeight: 600 }}>Don't know</span>
@@ -262,16 +253,8 @@ export function Flashcards({ words: propWords, userId, sourceText }) {
               </div>
             </div>
             <button
+              className="face-listen"
               onClick={e => { e.stopPropagation(); speak(word); }}
-              style={{
-                alignSelf: 'flex-start',
-                background: 'rgba(255,255,255,0.6)',
-                border: '1px solid rgba(127, 119, 221, 0.2)',
-                borderRadius: 999, padding: '6px 14px',
-                cursor: 'pointer', color: 'var(--ink-2)',
-                display: 'flex', alignItems: 'center', gap: 6,
-                fontSize: 12, fontWeight: 500,
-              }}
               title="Listen"
             >
               <IconSound /><span>Listen</span>

@@ -81,7 +81,7 @@ function UserMenu({ userId, dark, onSwitchUser, onTryDemo }) {
           <div style={{ position: 'fixed', inset: 0, zIndex: 99 }} onClick={() => setOpen(false)} />
           <div style={{
             position: 'absolute', top: 'calc(100% + 8px)', right: 0, zIndex: 100,
-            background: '#fff', border: '1px solid var(--line)', borderRadius: 12,
+            background: 'var(--bg-2)', border: '1px solid var(--line)', borderRadius: 12,
             boxShadow: '0 8px 24px rgba(0,0,0,0.12)', minWidth: 180, overflow: 'hidden',
           }}>
             <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)' }}>
