@@ -1,6 +1,6 @@
 # Wortgraph — Graph-Powered German Vocabulary Learning
 
-**Neo4j Hackathon Submission** · Built with Neo4j Aura, React, and Express
+**Neo4j Hackathon 2026 Submission** · Built with Neo4j Aura, React, and Express
 
 Wortgraph is a vocabulary learning app that treats your German words as a **graph**, not a list. Every word you save is linked to others it appeared with (CO_OCCURS_WITH), grouped into topic clusters (BELONGS_TO), and scored by how well you know it. The result: an AI coach that reasons about *connections* — not just isolated words.
 
@@ -18,6 +18,8 @@ Wortgraph is a vocabulary learning app that treats your German words as a **grap
 | API routes | [`server/index.js`](server/index.js) | All Express routes — clean, one concern per route |
 | Vocab extraction (Groq AI) | [`src/components/Extract.jsx`](src/components/Extract.jsx) | Paste German text → LLM extracts B1+ vocabulary as JSON |
 | AI Coach frontend | [`src/components/Agent.jsx`](src/components/Agent.jsx) | Insight cards + conversational chat |
+| Arena game hub | [`src/components/Arena.jsx`](src/components/Arena.jsx) | 6 games powered by Neo4j vector search + Groq planner agent |
+| Game registry | [`src/games/registry.js`](src/games/registry.js) | Uniform contract: Odd-One-Out, Synonym Sprint, Fill-Blank, Match, Der/Die/Das, Crossword |
 | Demo dataset | [`server/seed.js`](server/seed.js) | 48 words across 6 topics + 18 bridge candidates |
 
 ### The "Aha!" query — Bridge Words
@@ -69,6 +71,17 @@ The "Ask your coach" panel fetches live Neo4j context (deck, retention, bridges,
 
 ### 3. Similarity Search (Vector Embeddings)
 Words are embedded using **Gemini gemini-embedding-001** (3072-dim) and stored on Word nodes. A Neo4j vector index (`word_embeddings`, cosine similarity) powers semantic search — type "political decisions" and get *Beschluss*, *Gesetzgebung*, *Abstimmung* ranked by meaning, not keyword match.
+
+### 4. Arena — Graph-Powered Games
+Six vocabulary games driven by Neo4j vector similarity:
+- **Odd One Out** — 3 semantically close words + 1 outlier, live from the vector index
+- **Synonym Sprint** — pick the nearest neighbor vs. far distractors
+- **Fill the Blank** — real example sentence, embedding-based distractors
+- **Match** — pair German words to translations (deck-based)
+- **Der/Die/Das** — article challenge with color-coded feedback
+- **Crossword** — AI-generated puzzle from your deck
+
+Each game card shows the Cypher query that powered it — so the graph connection is always visible.
 
 ---
 
@@ -155,3 +168,5 @@ Express server (Node.js)
 | `src/components/Graph.jsx` | Force-directed vocabulary graph visualisation |
 | `src/components/Extract.jsx` | Paste text → extract vocabulary with Groq |
 | `src/components/Flashcards.jsx` | Spaced repetition review with retention tracking |
+| `src/components/Arena.jsx` | Arena hub: NL planner agent + 6 graph-powered games |
+| `src/games/` | Game modules: ChoiceRound UI, oddOneOut, synonym, fillBlank, article, match |

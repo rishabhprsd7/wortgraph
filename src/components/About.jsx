@@ -112,7 +112,7 @@ export function About({ setRoute }) {
       </div>
 
       <p style={{ marginTop: 32, fontSize: 12, color: 'var(--ink-4)', lineHeight: 1.6 }}>
-        Built for the Neo4j Hackathon 2025 · Neo4j Aura · React · Groq LLaMA 3.3 70B · Gemini embeddings
+        Built for the Neo4j Hackathon 2026 · Neo4j Aura · React · Groq LLaMA 3.3 70B · Gemini embeddings
       </p>
     </div>
   );
