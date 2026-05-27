@@ -302,6 +302,10 @@ export function Extract({ userId }) {
       showToast(`${selectedWords.length} word${selectedWords.length === 1 ? '' : 's'} added — head to the Learn tab to study them`);
     } catch (e) {
       console.error('Save error:', e);
+      const isNeo4j = e.message?.includes('routing') || e.message?.includes('discovery');
+      setError(isNeo4j
+        ? 'Could not save — the database is offline. Go to console.neo4j.io and resume your AuraDB instance, then try again.'
+        : `Could not save: ${e.message}`);
     } finally {
       setSaving(false);
     }
