@@ -56,10 +56,31 @@ async function withRetry(fn, attempts = 3) {
 }
 
 function parseJsonArray(raw) {
-  const stripped = raw.replace(/^```json\n?/, '').replace(/^```\n?/, '').replace(/\n?```$/, '').trim();
-  // Extract the outermost [...] in case the model adds trailing text
-  const match = stripped.match(/\[[\s\S]*\]/);
-  return JSON.parse(match ? match[0] : stripped);
+  const text = raw
+    .replace(/```json\s*/g, '')
+    .replace(/```\s*/g, '')
+    .trim();
+
+  // Try direct parse first
+  try {
+    const result = JSON.parse(text);
+    if (Array.isArray(result)) return result;
+  } catch {}
+
+  // Find the start of the first array
+  const start = text.indexOf('[');
+  if (start === -1) throw new Error('No JSON array found in response');
+
+  // Walk backwards from the last ']' until we get a valid parse.
+  // This handles trailing LLM commentary after the closing bracket.
+  for (let end = text.lastIndexOf(']'); end > start; end = text.lastIndexOf(']', end - 1)) {
+    try {
+      const result = JSON.parse(text.slice(start, end + 1));
+      if (Array.isArray(result)) return result;
+    } catch {}
+  }
+
+  throw new Error('Could not parse JSON array from response');
 }
 
 async function extractWithGroq(text, source) {
