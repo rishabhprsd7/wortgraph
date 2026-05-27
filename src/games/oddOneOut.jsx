@@ -1,7 +1,5 @@
 import { fetchRound } from './api';
-import { ChoiceRound } from './ChoiceRound';
-
-const label = o => `${o.article || ''} ${o.word}`.trim();
+import { ChoiceRound, GermanWord } from './ChoiceRound';
 
 export const oddOneOut = {
   id: 'odd-one-out',
@@ -12,8 +10,16 @@ export const oddOneOut = {
   reviewWord: () => null,
   Component: ({ data, onAnswer }) => (
     <ChoiceRound
-      prompt="Which word doesn’t belong with the others?"
-      options={data.options.map(o => ({ key: o.key, label: label(o), sub: o.translation }))}
+      prompt={
+        <span>
+          Which word doesn’t belong <span className="cr-accent">with the others?</span>
+        </span>
+      }
+      options={data.options.map(o => ({
+        key: o.key,
+        label: <GermanWord article={o.article} word={o.word} />,
+        sub: o.translation,
+      }))}
       answerKey={data.answer}
       onResult={onAnswer}
     />

@@ -1,7 +1,5 @@
 import { fetchRound } from './api';
-import { ChoiceRound } from './ChoiceRound';
-
-const label = o => `${o.article || ''} ${o.word}`.trim();
+import { ChoiceRound, GermanWord } from './ChoiceRound';
 
 export const synonym = {
   id: 'synonym',
@@ -12,9 +10,22 @@ export const synonym = {
   reviewWord: data => data.answer,
   Component: ({ data, onAnswer }) => (
     <ChoiceRound
-      prompt={<>Closest in meaning to <b>{label(data.anchor)}</b>?</>}
-      hint={data.anchor.translation && `“${data.anchor.translation}”`}
-      options={data.options.map(o => ({ key: o.key, label: label(o), sub: o.translation }))}
+      prompt={
+        <div className="synonym-prompt">
+          <div className="synonym-label">Closest in meaning to</div>
+          <div className="synonym-anchor">
+            <GermanWord article={data.anchor.article} word={data.anchor.word} size="lg" />
+          </div>
+          {data.anchor.translation && (
+            <div className="synonym-anchor-trans">“{data.anchor.translation}”</div>
+          )}
+        </div>
+      }
+      options={data.options.map(o => ({
+        key: o.key,
+        label: <GermanWord article={o.article} word={o.word} />,
+        sub: o.translation,
+      }))}
       answerKey={data.answer}
       onResult={onAnswer}
     />

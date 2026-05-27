@@ -1,4 +1,4 @@
-import { ChoiceRound } from './ChoiceRound';
+import { ChoiceRound, GermanWord } from './ChoiceRound';
 
 const shuffle = a => a.map(v => [Math.random(), v]).sort((x, y) => x[0] - y[0]).map(p => p[1]);
 
@@ -22,7 +22,16 @@ export const match = {
   },
   Component: ({ data, onAnswer }) => (
     <ChoiceRound
-      prompt={<>Translate <b>{`${data.article} ${data.word}`.trim()}</b></>}
+      prompt={
+        <div className="match-card">
+          <div className="match-card-label">Translate to English</div>
+          <div className="match-card-word">
+            <GermanWord article={data.article} word={data.word} size="lg" />
+          </div>
+        </div>
+      }
+      gridClass="match-options"
+      variantClass="match-opt"
       options={data.options.map((t, i) => ({ key: `${i}:${t}`, label: t }))}
       answerKey={data.options.map((t, i) => `${i}:${t}`).find(k => k.endsWith(`:${data.answer}`))}
       onResult={onAnswer}

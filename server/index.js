@@ -53,6 +53,64 @@ app.get('/health', async (_, res) => {
   }
 });
 
+// Diagnostic endpoint — pings every backend AI integration and reports status.
+// Visit /api/diag in a browser to verify Neo4j, Groq, and Gemini are reachable.
+app.get('/api/diag', async (_, res) => {
+  const result = { neo4j: null, groq: null, gemini: null };
+  const t0 = Date.now();
+
+  // Neo4j ping
+  try {
+    const tStart = Date.now();
+    await runQuery('RETURN 1 AS ok');
+    result.neo4j = { ok: true, latencyMs: Date.now() - tStart };
+  } catch (e) {
+    result.neo4j = { ok: false, error: e.message };
+  }
+
+  // Groq ping (lightweight chat completion)
+  if (!process.env.GROQ_KEY) {
+    result.groq = { ok: false, error: 'GROQ_KEY not set' };
+  } else {
+    try {
+      const tStart = Date.now();
+      const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.GROQ_KEY}` },
+        body: JSON.stringify({
+          model: 'llama-3.3-70b-versatile',
+          messages: [{ role: 'user', content: 'ping' }],
+          max_tokens: 5,
+        }),
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
+      result.groq = { ok: true, latencyMs: Date.now() - tStart };
+    } catch (e) {
+      result.groq = { ok: false, error: e.message };
+    }
+  }
+
+  // Gemini ping (embed a single token)
+  if (!process.env.GEMINI_KEY) {
+    result.gemini = { ok: false, error: 'GEMINI_KEY not set' };
+  } else {
+    try {
+      const tStart = Date.now();
+      const vec = await getEmbedding('test');
+      result.gemini = { ok: true, latencyMs: Date.now() - tStart, dimensions: vec?.length || 0 };
+    } catch (e) {
+      result.gemini = { ok: false, error: e.message };
+    }
+  }
+
+  const allOk = result.neo4j.ok && result.groq.ok && result.gemini.ok;
+  res.status(allOk ? 200 : 503).json({
+    ok: allOk,
+    totalMs: Date.now() - t0,
+    ...result,
+  });
+});
+
 // ── Admin (seed script only) ──────────────────────────────────────────────────
 
 app.delete('/api/admin/clear', async (req, res) => {
