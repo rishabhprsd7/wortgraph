@@ -139,15 +139,15 @@ async function saveWordsToDeck(words, source, snippet, userId, grammarTopics) {
 
 async function validateCustomWords(wordList) {
   const list = wordList.join(', ');
-  const prompt = `You are a German language expert AND a spell-corrector. For each word in this list, check if it is a real German word. If valid, generate a full vocabulary entry. Return ONLY a JSON array, no markdown.
+  const prompt = `You are a German language expert AND a spell-corrector. For each entry in this list, check if it is real German — this includes single words AND multi-word expressions (collocations, verb phrases, fixed expressions like "Gemeinsamkeiten feststellen", "zur Verfügung stehen", "auf den Punkt bringen"). If valid, generate a full vocabulary entry. Return ONLY a JSON array, no markdown.
 
 Each item must be:
-- {"word":"base lemma","valid":true,"article":"der/die/das or empty string for verbs/adjectives","cefr":"A2/B1/B2/C1/C2","translation":"English meaning in 2-4 words","example":"one sentence (10-16 words) showing the word in context","exampleTranslation":"natural English translation"}
-- {"word":"original input","valid":false,"reason":"short reason","suggestion":"REQUIRED: the single closest real German word the user most likely intended, in base lemma form. Always make your best guess by sound and spelling even if you are unsure. Never use null, never leave it empty."}
+- {"word":"the expression exactly as given (or corrected base form for phrases)","valid":true,"article":"der/die/das for nouns, empty string for verbs/phrases/adjectives","cefr":"A2/B1/B2/C1/C2","translation":"English meaning in 2-5 words","example":"one sentence (10-16 words) showing it in realistic context","exampleTranslation":"natural English translation"}
+- {"word":"original input","valid":false,"reason":"short reason","suggestion":"REQUIRED: the single closest real German word or phrase the user most likely intended. Always make your best guess. Never use null, never leave it empty."}
 
-The suggestion field must ALWAYS contain a real German word — treat misspellings like a search engine's "did you mean". Example: input "gehobenich" → suggestion "gehoben". Input "freundschft" → suggestion "Freundschaft".
+The suggestion field must ALWAYS contain a real German word or phrase — treat misspellings like a search engine's "did you mean". Example: input "gehobenich" → suggestion "gehoben". Input "freundschft" → suggestion "Freundschaft". Input "Gemeinsamkeiten feststelen" → suggestion "Gemeinsamkeiten feststellen".
 
-Words to validate: ${list}`;
+Words/phrases to validate: ${list}`;
 
   const res = await fetch(GROQ_URL, {
     method: 'POST',
@@ -334,10 +334,10 @@ export function Extract({ userId }) {
         <div className="dropzone">
           <div className="dz-icon">✎</div>
           <div className="dz-title">Add custom German words</div>
-          <div className="dz-sub">Enter one word per line or separate with commas — we'll verify each word is real German and generate entries</div>
+          <div className="dz-sub">Enter words or phrases per line (e.g. "Gemeinsamkeiten feststellen") — we'll verify each is real German and generate entries</div>
           <textarea
             className="dz-textarea"
-            placeholder={"Schadenfreude\nWeltanschauung\nZeitgeist\nGesundheit"}
+            placeholder={"Schadenfreude\nWeltanschauung\nGemeinsamkeiten feststellen\nzur Verfügung stehen"}
             value={customText}
             onChange={e => setCustomText(e.target.value)}
           />
