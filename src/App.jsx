@@ -103,11 +103,15 @@ export default function App() {
     if (!userId || !API_URL) return;
     const q = `?userId=${encodeURIComponent(userId)}`;
     Promise.all([
-      fetch(`${API_URL}/api/weak${q}`).then(r => r.json()).catch(() => []),
-      fetch(`${API_URL}/api/words${q}`).then(r => r.json()).catch(() => []),
-      fetch(`${API_URL}/api/sources${q}`).then(r => r.json()).catch(() => []),
+      fetch(`${API_URL}/api/weak${q}`).then(r => r.ok ? r.json() : []).catch(() => []),
+      fetch(`${API_URL}/api/words${q}`).then(r => r.ok ? r.json() : []).catch(() => []),
+      fetch(`${API_URL}/api/sources${q}`).then(r => r.ok ? r.json() : []).catch(() => []),
     ]).then(([weak, words, sources]) => {
-      setDeckStats({ due: weak.length, wordCount: words.length, sources });
+      setDeckStats({
+        due: Array.isArray(weak) ? weak.length : 0,
+        wordCount: Array.isArray(words) ? words.length : 0,
+        sources: Array.isArray(sources) ? sources : [],
+      });
     });
   }, [userId]);
 
@@ -124,8 +128,8 @@ export default function App() {
       if (API_URL) {
         const q = userId ? `?userId=${encodeURIComponent(userId)}` : '';
         [words, sources] = await Promise.all([
-          fetch(`${API_URL}/api/words${q}`).then(r => r.json()).catch(() => []),
-          fetch(`${API_URL}/api/sources${q}`).then(r => r.json()).catch(() => []),
+          fetch(`${API_URL}/api/words${q}`).then(r => r.ok ? r.json() : []).catch(() => []),
+          fetch(`${API_URL}/api/sources${q}`).then(r => r.ok ? r.json() : []).catch(() => []),
         ]);
       }
       const payload = {

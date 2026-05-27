@@ -27,13 +27,13 @@ export function Dashboard({ userId }) {
     if (!API_URL) { setLoading(false); return; }
     const q = userId ? `?userId=${encodeURIComponent(userId)}` : '';
     Promise.all([
-      fetch(`${API_URL}/api/words${q}`).then(r => r.json()).catch(() => []),
-      fetch(`${API_URL}/api/weak${q}`).then(r => r.json()).catch(() => []),
-      fetch(`${API_URL}/api/sources${q}`).then(r => r.json()).catch(() => []),
+      fetch(`${API_URL}/api/words${q}`).then(r => r.ok ? r.json() : []).catch(() => []),
+      fetch(`${API_URL}/api/weak${q}`).then(r => r.ok ? r.json() : []).catch(() => []),
+      fetch(`${API_URL}/api/sources${q}`).then(r => r.ok ? r.json() : []).catch(() => []),
     ]).then(([w, wk, s]) => {
-      setWords(w);
-      setWeakWords(wk);
-      setSources(s);
+      setWords(Array.isArray(w) ? w : []);
+      setWeakWords(Array.isArray(wk) ? wk : []);
+      setSources(Array.isArray(s) ? s : []);
     }).finally(() => setLoading(false));
   }, []);
 

@@ -69,8 +69,8 @@ export function Flashcards({ words: propWords, userId, sourceText }) {
     }
     if (!API_URL) { setCards(staticCards); setLoading(false); return; }
     fetch(`${API_URL}/api/words${userId ? `?userId=${encodeURIComponent(userId)}` : ''}`)
-      .then(r => r.json())
-      .then(data => setCards(data.length > 0 ? data : staticCards))
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setCards(Array.isArray(data) && data.length > 0 ? data : staticCards))
       .catch(() => setCards(staticCards))
       .finally(() => setLoading(false));
   }, [propWords]);

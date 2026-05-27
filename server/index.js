@@ -44,7 +44,14 @@ const num = (v) => v?.toNumber?.() ?? v ?? 0;
 
 // ── Health ────────────────────────────────────────────────────────────────────
 
-app.get('/health', (_, res) => res.json({ ok: true }));
+app.get('/health', async (_, res) => {
+  try {
+    await runQuery('RETURN 1');
+    res.json({ ok: true, neo4j: 'connected' });
+  } catch (e) {
+    res.status(503).json({ ok: false, neo4j: 'error', error: e.message });
+  }
+});
 
 // ── Admin (seed script only) ──────────────────────────────────────────────────
 

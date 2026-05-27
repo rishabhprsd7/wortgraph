@@ -202,10 +202,11 @@ export function Learn({ userId, setRoute }) {
   useEffect(() => {
     if (!API_URL) return;
     fetch(`${API_URL}/api/sources${userId ? `?userId=${encodeURIComponent(userId)}` : ''}`)
-      .then(r => r.json())
+      .then(r => r.ok ? r.json() : [])
       .then(data => {
-        setSources(data);
-        if (data.length > 0) setSelectedSource(data[0].id);
+        const list = Array.isArray(data) ? data : [];
+        setSources(list);
+        if (list.length > 0) setSelectedSource(list[0].id);
       })
       .catch(() => {});
   }, []);
@@ -218,8 +219,8 @@ export function Learn({ userId, setRoute }) {
       ? `${API_URL}/api/words?sourceId=${encodeURIComponent(selectedSource)}${uidParam ? '&' + uidParam : ''}`
       : `${API_URL}/api/words${uidParam ? '?' + uidParam : ''}`;
     fetch(url)
-      .then(r => r.json())
-      .then(data => setWords(data.length > 0 ? data : selectedSource ? [] : staticCards))
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setWords(Array.isArray(data) && data.length > 0 ? data : selectedSource ? [] : staticCards))
       .catch(() => setWords(staticCards))
       .finally(() => setLoadingWords(false));
   }, [selectedSource]);
