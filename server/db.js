@@ -6,6 +6,9 @@
  *   (:Word)-[:CO_OCCURS_WITH {strength}]-(:Word)
  *   (:Word)-[:BELONGS_TO]->(:Topic)
  *   (:Word)-[:EXTRACTED_FROM]->(:Source)
+ *   (:Word)-[:SYNONYM_OF {confidence, reason}]->(:Word)   — Graph-RAG output
+ *   (:Word)-[:ANTONYM_OF {confidence, reason}]->(:Word)   — Graph-RAG output
+ *   (:Word)-[:FORM_OF    {confidence, reason}]->(:Word)   — Graph-RAG output
  */
 
 import neo4j from 'neo4j-driver';

@@ -1819,3 +1819,53 @@ body.dark .arena-cypher pre { color: var(--ink-2); }
   .card-frame { height: 210px; }
   .resp-btn { padding: 14px 4px; }
 }
+
+/* ── Graph-RAG: related-words pills on flashcard back ────────────────── */
+.rw {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255,255,255,0.10);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.rw-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.rw-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.65;
+  flex-shrink: 0;
+  min-width: 80px;
+}
+.rw-label-syn { color: #7be0b0; }
+.rw-label-ant { color: #ff9b9a; }
+.rw-label-form { color: #c5b8ff; }
+.rw-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.rw-pill {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  border: 1px solid;
+  font-family: 'IBM Plex Serif', Georgia, serif;
+}
+.rw-pill-syn  { background: rgba(29,158,117,0.18); border-color: rgba(29,158,117,0.40); color: #7be0b0; }
+.rw-pill-ant  { background: rgba(226,75,74,0.18);  border-color: rgba(226,75,74,0.40);  color: #ff9b9a; }
+.rw-pill-form { background: rgba(127,119,221,0.18); border-color: rgba(127,119,221,0.45); color: #c5b8ff; }
+.rw-pill .rw-art { font-size: 11px; opacity: 0.7; }
+.rw-pill .rw-word { font-weight: 600; }
+
+/* Light-mode variant (kept for future Flashcard placements) */
+.rw-light .rw-label-syn { color: var(--green); }
+.rw-light .rw-label-ant { color: var(--red); }
+.rw-light .rw-label-form { color: var(--violet); }
+.rw-light { border-top-color: var(--line); }

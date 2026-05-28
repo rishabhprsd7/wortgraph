@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { flashcards as staticCards } from '../data/vocab';
 import { IconX, IconCheck, IconSound, IconTrophy } from './Icons';
+import { RelatedWords } from './RelatedWords';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
@@ -287,6 +288,9 @@ export function Flashcards({ words: propWords, userId, sourceText }) {
                 )}
               </div>
             )}
+
+            {/* Graph-RAG: synonyms / antonyms / word forms from the user's deck */}
+            <RelatedWords word={word} userId={userId} theme="dark" />
           </div>
         </div>
       </div>

@@ -11,6 +11,8 @@
  *   GET  /api/graph                — nodes + edges for graph visualisation
  *   GET  /api/search/similar       — semantic similarity search (Gemini embeddings)
  *   POST /api/embed/words          — bulk-embed unembedded words
+ *   GET  /api/word/relations       — synonyms/antonyms/forms for a word (Graph-RAG output)
+ *   POST /api/word/relations/refresh — re-run Graph-RAG classification for a word
  *   GET  /api/agent/insight        — 7 graph insight cards (see cypher.js)
  *   GET  /api/agent/suggest        — simple CEFR-based study suggestion
  *   POST /api/agent/chat           — conversational AI coach (Groq LLaMA + Neo4j context)
@@ -25,6 +27,7 @@ import dotenv from 'dotenv';
 
 import { driver, runQuery, getEmbedding, wordEmbedText, initSchema } from './db.js';
 import { INSIGHT_CYPHERS, CHAT_CONTEXT, buildSystemPrompt } from './cypher.js';
+import { classifyRelations } from './relations.js';
 
 dotenv.config();
 
@@ -192,13 +195,24 @@ app.post('/api/words', async (req, res) => {
            translation: w.translation || '', example: w.example || '',
            exampleTranslation: w.exampleTranslation || '', userId, sourceId, topic: source });
 
-      // Auto-embed with Gemini (fire-and-forget — doesn't block response)
+      // Auto-embed with Gemini, then run Graph-RAG to classify relations.
+      // Fire-and-forget — doesn't block the save response.
       if (process.env.GEMINI_KEY) {
         getEmbedding(wordEmbedText({ ...w, lemma: w.word }))
-          .then(emb => emb && runQuery(
-            'MATCH (word:Word {lemma: $lemma}) SET word.embedding = $embedding',
-            { lemma: w.word, embedding: emb }
-          ))
+          .then(async emb => {
+            if (!emb) return;
+            await runQuery(
+              'MATCH (word:Word {lemma: $lemma}) SET word.embedding = $embedding',
+              { lemma: w.word, embedding: emb }
+            );
+            if (process.env.GROQ_KEY) {
+              try {
+                await classifyRelations(w.word, userId, { minConfidence: 0.75 });
+              } catch (e) {
+                console.error(`Relations failed for ${w.word}:`, e.message);
+              }
+            }
+          })
           .catch(e => console.error(`Embed failed for ${w.word}:`, e.message));
       }
     }
@@ -423,6 +437,60 @@ app.post('/api/embed/words', async (req, res) => {
 });
 
 // ── AI Coach: graph insight cards ─────────────────────────────────────────────
+// ── Word relations (Graph-RAG) ────────────────────────────────────────────────
+// Returns synonyms/antonyms/forms for a word — edges built by retrieval over
+// the vector index + LLM classification grounded in the user's own deck.
+
+app.get('/api/word/relations', async (req, res) => {
+  const { userId = 'default', word } = req.query;
+  if (!word) return res.status(400).json({ error: 'word query param required' });
+  try {
+    const rows = await runQuery(`
+      MATCH (u:User {id: $userId})-[:ADDED]->(a:Word {lemma: $word})
+      MATCH (a)-[r:SYNONYM_OF|ANTONYM_OF|FORM_OF]->(b:Word)
+      WHERE EXISTS { (u)-[:ADDED]->(b) }
+      RETURN type(r) AS relation, b.lemma AS lemma, b.article AS article,
+             coalesce(b.translation,'') AS translation,
+             coalesce(r.confidence, 0) AS confidence,
+             coalesce(r.reason,'') AS reason
+      ORDER BY r.confidence DESC
+    `, { userId, word });
+    const result = { synonyms: [], antonyms: [], forms: [] };
+    rows.forEach(r => {
+      const rel = r.get('relation');
+      const item = {
+        lemma: r.get('lemma'),
+        article: r.get('article') || '',
+        translation: r.get('translation'),
+        confidence: num(r.get('confidence')),
+        reason: r.get('reason'),
+      };
+      if (rel === 'SYNONYM_OF') result.synonyms.push(item);
+      else if (rel === 'ANTONYM_OF') result.antonyms.push(item);
+      else if (rel === 'FORM_OF') result.forms.push(item);
+    });
+    res.json(result);
+  } catch (e) {
+    console.error('Get relations error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Manual refresh — re-run the Graph-RAG pipeline for one word. Useful when the
+// user adds more words to the deck after first save (new candidates available).
+app.post('/api/word/relations/refresh', async (req, res) => {
+  const { userId = 'default', word, minConfidence = 0.75 } = req.body;
+  if (!word) return res.status(400).json({ error: 'word required' });
+  try {
+    const result = await classifyRelations(word, userId, { minConfidence });
+    res.json(result);
+  } catch (e) {
+    console.error('Refresh relations error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── Graph insights ────────────────────────────────────────────────────────────
 // Runs all 7 INSIGHT_CYPHERS in parallel. Each result includes the Cypher
 // query that produced it so judges and learners can inspect the graph logic.
 
