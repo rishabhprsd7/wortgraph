@@ -90,6 +90,24 @@ const batches = [
       { article: 'die', word: 'Entwicklung', cefr: 'B1', translation: 'development', example: 'Die gesundheitliche Entwicklung eines Kindes hängt von vielen Faktoren ab.', exampleTranslation: 'The health development of a child depends on many factors.' },
     ],
   },
+  {
+    // Argumentation vocabulary, chosen so the Graph-RAG pipeline surfaces clear
+    // synonym (Entscheidung↔Beschluss), antonym (Vorteil↔Nachteil) and
+    // form_of (entscheiden↔Entscheidung, beschließen↔Beschluss) relations.
+    source: 'Debatte',
+    snippet: 'In jeder Debatte werden Vorteile und Nachteile abgewogen. Am Ende führen Zustimmung oder Ablehnung zu einer Entscheidung.',
+    words: [
+      { article: 'die', word: 'Entscheidung', cefr: 'B1', translation: 'decision', example: 'Die Entscheidung des Gerichts überraschte viele Beobachter im Saal.', exampleTranslation: 'The court\'s decision surprised many observers in the room.' },
+      { article: '', word: 'entscheiden', cefr: 'B1', translation: 'to decide', example: 'Der Ausschuss muss bis Freitag über den Antrag entscheiden.', exampleTranslation: 'The committee must decide on the application by Friday.' },
+      { article: '', word: 'beschließen', cefr: 'B2', translation: 'to decide, to pass (a law)', example: 'Das Parlament wird das neue Gesetz nächste Woche beschließen.', exampleTranslation: 'Parliament will pass the new law next week.' },
+      { article: 'der', word: 'Vorteil', cefr: 'B1', translation: 'advantage', example: 'Ein großer Vorteil der Fernarbeit ist die zeitliche Flexibilität.', exampleTranslation: 'A big advantage of remote work is flexible scheduling.' },
+      { article: 'der', word: 'Nachteil', cefr: 'B1', translation: 'disadvantage', example: 'Der größte Nachteil des Plans sind die hohen Anfangskosten.', exampleTranslation: 'The biggest disadvantage of the plan is the high initial costs.' },
+      { article: 'die', word: 'Zustimmung', cefr: 'B2', translation: 'approval, consent', example: 'Der Vorschlag fand bei der Mehrheit der Abgeordneten Zustimmung.', exampleTranslation: 'The proposal won the approval of the majority of MPs.' },
+      { article: 'die', word: 'Ablehnung', cefr: 'B2', translation: 'rejection, refusal', example: 'Die Ablehnung des Antrags wurde mit Kostengründen begründet.', exampleTranslation: 'The rejection of the application was justified on cost grounds.' },
+      { article: 'der', word: 'Anstieg', cefr: 'B2', translation: 'rise, increase', example: 'Der Anstieg der Mieten zwingt viele Familien zum Umzug.', exampleTranslation: 'The rise in rents forces many families to move.' },
+      { article: 'der', word: 'Rückgang', cefr: 'B2', translation: 'decline, decrease', example: 'Der Rückgang der Geburtenrate stellt das Rentensystem vor Probleme.', exampleTranslation: 'The decline in the birth rate poses problems for the pension system.' },
+    ],
+  },
 ];
 
 // Review sequences — designed to fill all 7 insight panels
@@ -148,6 +166,17 @@ const reviewScripts = {
   Vernunft:           [],
   Beschluss:          [],
   Verständigung:      [],
+
+  // Debatte batch — mixed tiers
+  Entscheidung:       [true, true, true],
+  Vorteil:            [true, true, true, true],
+  Nachteil:           [true, true, false, true],
+  entscheiden:        [true, false, true],
+  Anstieg:            [true, false, true],
+  Ablehnung:          [false, true, false],
+  beschließen:        [],
+  Zustimmung:         [],
+  Rückgang:           [],
 };
 
 async function post(path, body) {
@@ -257,13 +286,39 @@ async function main() {
     console.log('  Embedding skipped:', e.message);
   }
 
+  // 6. Generate word relations via Graph-RAG (synonyms / antonyms / forms).
+  // Runs the real pipeline per word: vector retrieval → Groq classification →
+  // edge write-back. Needs embeddings (step 5) + GROQ_KEY on the server.
+  console.log('\nGenerating word relations (Graph-RAG)…');
+  const allLemmas = batches.flatMap(b => b.words.map(w => w.word));
+  let relSyn = 0, relAnt = 0, relForm = 0, relSkipped = 0;
+  for (const word of allLemmas) {
+    try {
+      const r = await post('/api/word/relations/refresh', { userId: SEED_USER, word, minConfidence: 0.7 });
+      if (r.error) { relSkipped++; continue; }
+      relSyn += r.synonyms?.length || 0;
+      relAnt += r.antonyms?.length || 0;
+      relForm += r.forms?.length || 0;
+    } catch {
+      relSkipped++;
+    }
+    await new Promise(r => setTimeout(r, 600)); // stay under Groq rate limit
+  }
+  if (relSkipped === allLemmas.length) {
+    console.log('  Skipped — needs GEMINI_KEY + GROQ_KEY on the server');
+  } else {
+    console.log(`  ✓ Built ${relSyn} synonym · ${relAnt} antonym · ${relForm} form edges${relSkipped ? ` (${relSkipped} words skipped)` : ''}`);
+  }
+
   console.log('\n✅ Done! Your Neo4j graph now has:');
-  console.log('  • 48 words across 6 topics: Politik · Klima · Wirtschaft · Gesellschaft · Technologie · Gesundheit');
-  console.log('  • Retention tiers: 12 high · 15 medium · 10 stuck · 11 unreviewed');
+  console.log('  • 57 words across 7 topics: Politik · Klima · Wirtschaft · Gesellschaft · Technologie · Gesundheit · Debatte');
+  console.log('  • Retention tiers: ~15 high · ~19 medium · ~11 stuck · ~12 unreviewed');
   console.log('  • Word families visible: ver-, be-, ge-, -ung, -keit, -schaft');
   console.log('  • Dense CO_OCCURS_WITH edges between same-topic words');
   console.log('  • Vector embeddings (if GEMINI_KEY set) for semantic search');
+  console.log('  • SYNONYM_OF / ANTONYM_OF / FORM_OF edges from the Graph-RAG pipeline');
   console.log('\nRefresh the Agent tab to see all insights populate.');
+  console.log('Flip a flashcard in Learn to see related words (synonyms/antonyms/forms).');
 }
 
 main().catch(e => { console.error(e); process.exit(1); });

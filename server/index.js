@@ -447,7 +447,7 @@ app.get('/api/word/relations', async (req, res) => {
   try {
     const rows = await runQuery(`
       MATCH (u:User {id: $userId})-[:ADDED]->(a:Word {lemma: $word})
-      MATCH (a)-[r:SYNONYM_OF|ANTONYM_OF|FORM_OF]->(b:Word)
+      MATCH (a)-[r:SYNONYM_OF|ANTONYM_OF|FORM_OF]-(b:Word)
       WHERE EXISTS { (u)-[:ADDED]->(b) }
       RETURN type(r) AS relation, b.lemma AS lemma, b.article AS article,
              coalesce(b.translation,'') AS translation,
@@ -456,10 +456,15 @@ app.get('/api/word/relations', async (req, res) => {
       ORDER BY r.confidence DESC
     `, { userId, word });
     const result = { synonyms: [], antonyms: [], forms: [] };
+    const seen = new Set();
     rows.forEach(r => {
       const rel = r.get('relation');
+      const lemma = r.get('lemma');
+      const dedupKey = `${rel}:${lemma}`;
+      if (seen.has(dedupKey)) return;
+      seen.add(dedupKey);
       const item = {
-        lemma: r.get('lemma'),
+        lemma,
         article: r.get('article') || '',
         translation: r.get('translation'),
         confidence: num(r.get('confidence')),

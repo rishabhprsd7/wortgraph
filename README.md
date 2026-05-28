@@ -20,7 +20,7 @@ Wortgraph is a vocabulary learning app that treats your German words as a **grap
 | AI Coach frontend | [`src/components/Agent.jsx`](src/components/Agent.jsx) | Insight cards + conversational chat |
 | Arena game hub | [`src/components/Arena.jsx`](src/components/Arena.jsx) | 6 games powered by Neo4j vector search + Groq planner agent |
 | Game registry | [`src/games/registry.js`](src/games/registry.js) | Uniform contract: Odd-One-Out, Synonym Sprint, Fill-Blank, Match, Der/Die/Das, Crossword |
-| Demo dataset | [`server/seed.js`](server/seed.js) | 48 words across 6 topics + 18 bridge candidates |
+| Demo dataset | [`server/seed.js`](server/seed.js) | 57 words across 7 topics + 18 bridge candidates + Graph-RAG relations |
 
 ### The "Aha!" query — Bridge Words
 
@@ -83,6 +83,14 @@ Six vocabulary games driven by Neo4j vector similarity:
 
 Each game card shows the Cypher query that powered it — so the graph connection is always visible.
 
+### 5. Graph-RAG — Word Relations
+When a word is saved, a retrieval-augmented pipeline classifies its relationships:
+1. **Retrieve** — query the Neo4j vector index for the word's top-20 nearest neighbors *within the user's own deck*
+2. **Classify** — pass each candidate (with translation + example) to Groq, which labels it `synonym` / `antonym` / `form_of` / `unrelated` + confidence
+3. **Write back** — edges above 0.75 confidence become `SYNONYM_OF`, `ANTONYM_OF`, `FORM_OF` relationships
+
+Because retrieval grounds the LLM in real words from the deck, it cannot hallucinate fake synonyms — the candidate set is the constraint. The flashcard back surfaces these as color-coded pills (synonyms green, antonyms red, forms violet). See [`server/relations.js`](server/relations.js).
+
 ---
 
 ## Graph Schema
@@ -92,6 +100,9 @@ Each game card shows the Cypher query that powered it — so the graph connectio
 (:Word)-[:CO_OCCURS_WITH {strength}]-(:Word)
 (:Word)-[:BELONGS_TO]->(:Topic)
 (:Word)-[:EXTRACTED_FROM]->(:Source)
+(:Word)-[:SYNONYM_OF {confidence, reason}]->(:Word)   // Graph-RAG
+(:Word)-[:ANTONYM_OF {confidence, reason}]->(:Word)   // Graph-RAG
+(:Word)-[:FORM_OF    {confidence, reason}]->(:Word)   // Graph-RAG
 ```
 
 ---
@@ -130,7 +141,7 @@ cd server
 node seed.js
 ```
 
-Inserts 48 curated German words across 6 topics (Politik, Klima, Wirtschaft, Gesellschaft, Technologie, Gesundheit) with simulated retention data covering all insight panels.
+Inserts 57 curated German words across 7 topics (Politik, Klima, Wirtschaft, Gesellschaft, Technologie, Gesundheit, Debatte) with simulated retention data covering all insight panels, then runs the Graph-RAG pipeline to build synonym/antonym/form_of edges. The Debatte batch is chosen to surface clear relations (e.g. *Vorteil*↔*Nachteil* antonyms, *entscheiden*↔*Entscheidung* forms).
 
 ### Frontend setup
 ```bash
