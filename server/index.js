@@ -182,9 +182,11 @@ app.post('/api/words', async (req, res) => {
         MERGE (word:Word {lemma: $lemma})
         ON CREATE SET word.article = $article, word.cefr = $cefr,
                       word.translation = $translation, word.example = $example,
-                      word.exampleTranslation = $exampleTranslation, word.addedAt = timestamp()
+                      word.exampleTranslation = $exampleTranslation, word.pos = $pos,
+                      word.addedAt = timestamp()
         ON MATCH  SET word.cefr = $cefr, word.translation = $translation,
-                      word.example = $example, word.exampleTranslation = $exampleTranslation
+                      word.example = $example, word.exampleTranslation = $exampleTranslation,
+                      word.pos = coalesce($pos, word.pos)
         WITH word
         MATCH (u:User {id: $userId}), (s:Source {id: $sourceId}), (t:Topic {name: $topic})
         MERGE (u)-[r:ADDED]->(word)
@@ -193,7 +195,8 @@ app.post('/api/words', async (req, res) => {
         MERGE (word)-[:BELONGS_TO]->(t)
       `, { lemma: w.word, article: w.article || '', cefr: w.cefr || 'B1',
            translation: w.translation || '', example: w.example || '',
-           exampleTranslation: w.exampleTranslation || '', userId, sourceId, topic: source });
+           exampleTranslation: w.exampleTranslation || '', pos: w.pos || '',
+           userId, sourceId, topic: source });
 
       // Auto-embed with Gemini, then run Graph-RAG to classify relations.
       // Fire-and-forget — doesn't block the save response.
@@ -246,20 +249,20 @@ app.get('/api/words', async (req, res) => {
       ? `MATCH (u:User {id: $userId})-[r:ADDED]->(w:Word)-[:EXTRACTED_FROM]->(s:Source {id: $sourceId})
          RETURN w.lemma AS word, w.article AS article, w.cefr AS cefr,
                 coalesce(w.translation,'') AS translation, coalesce(w.example,'') AS example,
-                coalesce(w.exampleTranslation,'') AS exampleTranslation,
+                coalesce(w.exampleTranslation,'') AS exampleTranslation, coalesce(w.pos,'') AS pos,
                 r.reviewCount AS reviewCount, r.retention AS retention, r.addedAt AS addedAt
          ORDER BY r.addedAt DESC`
       : `MATCH (u:User {id: $userId})-[r:ADDED]->(w:Word)
          RETURN w.lemma AS word, w.article AS article, w.cefr AS cefr,
                 coalesce(w.translation,'') AS translation, coalesce(w.example,'') AS example,
-                coalesce(w.exampleTranslation,'') AS exampleTranslation,
+                coalesce(w.exampleTranslation,'') AS exampleTranslation, coalesce(w.pos,'') AS pos,
                 r.reviewCount AS reviewCount, r.retention AS retention, r.addedAt AS addedAt
          ORDER BY r.addedAt DESC`;
     const records = await runQuery(cypher, { userId, sourceId });
     res.json(records.map(r => ({
       word: r.get('word'), article: r.get('article'), cefr: r.get('cefr'),
       translation: r.get('translation'), example: r.get('example'),
-      exampleTranslation: r.get('exampleTranslation'),
+      exampleTranslation: r.get('exampleTranslation'), pos: r.get('pos'),
       reviewCount: num(r.get('reviewCount')), retention: num(r.get('retention')),
     })));
   } catch (e) {

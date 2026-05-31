@@ -24,27 +24,66 @@ const PROMPT = (text, source = 'Text') => {
   const wordCount = text.trim().split(/\s+/).length;
   const { min, max, ratio } = LIMITS[source] || LIMITS.Text;
   const target = Math.min(max, Math.max(min, Math.round(wordCount * ratio)));
-  return `You are a strict German language teacher selecting vocabulary for a B1+ learner.
+  return `You are a strict German language teacher helping a B1+ learner FULLY UNDERSTAND this text.
 
-Extract exactly ${target} words from this text. Return ONLY a JSON array, no markdown, no explanation.
-Each item: {"article":"der/die/das or empty string","word":"base lemma","cefr":"B1/B2/C1/C2","translation":"English meaning in 2-4 words","example":"one sentence (10–16 words) showing the word in realistic context — the sentence must make the word's meaning clear from how it is used, not just state it exists; use simple A2/B1 grammar, present tense, everyday vocabulary","exampleTranslation":"natural English translation of that sentence"}
+Extract up to ${target} items. Return ONLY a JSON array, no markdown, no explanation.
+Each item: {"word":"base lemma (INFINITIVE for verbs)","pos":"noun|verb|adjective|adverb|phrase","article":"der/die/das for nouns, otherwise empty string","cefr":"B1/B2/C1/C2","translation":"English meaning in 2-4 words","example":"one sentence (10–16 words), simple A2/B1 grammar, present tense, that makes the meaning clear from context","exampleTranslation":"natural English translation of that sentence"}
+
+CRITICAL — VERBS CARRY THE MEANING:
+- A sentence cannot be understood without its verbs. You MUST capture the meaningful verbs, not only nouns. Aim for a balanced mix across nouns, verbs, and adjectives — roughly a third verbs whenever the text contains them.
+- Return every verb as its INFINITIVE. Reconstruct separable verbs from split or conjugated forms: "geht … hinaus" / "hinausgeht" → "hinausgehen"; "geschmissen" → "schmeißen"; "stellt … fest" → "feststellen".
+- Capture fixed verb phrases as ONE item with pos "phrase": e.g. "auf Rechnung stellen", "in Kraft treten", "zur Verfügung stehen".
 
 INCLUDE:
-- Genuinely German words a learner would need to look up
-- Useful nouns, verbs, adjectives at B1 level or above
-- Compound words specific to German (e.g. Krafttraining, Kniebeugen)
+- Genuinely useful German words a learner would look up: nouns, verbs, adjectives, adverbs.
+- Compound words specific to German (e.g. Sperrmüll, Krafttraining).
+- Less common or figurative verbs even if short (schmeißen, gehören in the sense of "to belong", hinausgehen).
 
 EXCLUDE — do not include any of these:
-- Proper nouns: place names (Berlin, Prenzlauer Berg, Tiergarten), people names, brand names
+- Proper nouns: place names (Berlin, Tiergarten), people, brand names, AND organisation/agency names or acronyms (e.g. BSR, ADAC, DHL, Deutsche Bahn).
 - Obvious English loanwords already known to English speakers: Gym, Training, Marathon, Smoothie, Fitness, Studio, Podcast, etc.
-- A1/A2 basics including ALL common concrete nouns: Tisch, Stuhl, Haus, Auto, Buch, Schule, Kind, Mann, Frau, Zeit, Jahr, Land, Wasser, Essen, Arbeit, Geld, Weg, Hand, Kopf, Auge, etc.
-- Common verbs every beginner knows: haben, sein, werden, gehen, kommen, machen, sagen, sehen, wissen, geben, nehmen, stehen, liegen, etc.
-- The article must always be der/die/das — never ein/eine
-- CEFR must reflect genuine difficulty — if a native speaker would call it "Grundschulwortschatz" (primary school vocabulary), exclude it
+- A1/A2 basics: the most common concrete nouns (Tisch, Stuhl, Haus, Auto, Buch, Schule, Kind, Mann, Frau, Zeit, Jahr…) and the most common verbs (haben, sein, werden, gehen, kommen, machen, sagen, sehen, wissen, geben…).
+- The article must always be der/die/das — never ein/eine.
+- Do NOT repeat the same lemma twice.
 
 Text:
 ${text}`;
 };
+
+// Collapse repeated lemmas (case-insensitive) — guards against the model
+// returning the same word twice (e.g. "Jahresputz" appearing in two clauses).
+function dedupeByLemma(list) {
+  const seen = new Set();
+  return list.filter(w => {
+    const key = (w.word || '').trim().toLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+// Part-of-speech buckets, in display order. Verbs first — they carry meaning.
+const POS_GROUPS = [
+  { key: 'verb', label: 'Verbs' },
+  { key: 'noun', label: 'Nouns' },
+  { key: 'adjective', label: 'Adjectives' },
+  { key: 'adverb', label: 'Adverbs' },
+  { key: 'phrase', label: 'Phrases' },
+];
+
+// Normalise the model's pos field (and fall back to article/shape heuristics).
+function normalizePos(w) {
+  const p = (w.pos || '').toLowerCase();
+  if (p.startsWith('verb')) return 'verb';
+  if (p.startsWith('adj')) return 'adjective';
+  if (p.startsWith('adv')) return 'adverb';
+  if (p.startsWith('phrase')) return 'phrase';
+  if (p.startsWith('noun')) return 'noun';
+  // No usable pos — infer: has article → noun, has a space → phrase, else noun.
+  if (['der', 'die', 'das'].includes((w.article || '').toLowerCase())) return 'noun';
+  if ((w.word || '').trim().includes(' ')) return 'phrase';
+  return 'noun';
+}
 
 async function withRetry(fn, attempts = 3) {
   for (let i = 0; i < attempts; i++) {
@@ -221,10 +260,10 @@ export function Extract({ userId }) {
           withRetry(() => extractWithGroq(text, source)),
           withRetry(() => extractGrammarTopics(text)).catch(() => []),
         ]);
-        saveExtracted(words);
+        saveExtracted(dedupeByLemma(words));
         saveGrammar(grammar);
       } else {
-        saveExtracted(fallbackExtract(text));
+        saveExtracted(dedupeByLemma(fallbackExtract(text)));
       }
     } catch (e) {
       console.error("Groq error:", e);
@@ -453,27 +492,43 @@ export function Extract({ userId }) {
             </span>
           </div>
           <div className="er-body">
-            <div className="word-grid" key={extractionId}>
-              {loading
-                ? Array.from({ length: 12 }).map((_, i) => (
-                    <span key={i} className="word-chip skel" style={{ width: 80 + (i % 5) * 20 }}>placeholder</span>
-                  ))
-                : extracted.map(w => {
-                    const isAdded = added.has(w.word);
-                    return (
-                      <button
-                        key={w.word}
-                        className={`word-chip${isAdded ? " added" : ""}`}
-                        onClick={() => toggleAdd(w)}
-                      >
-                        <span className="wart">{w.article}</span>
-                        <span>{w.word}</span>
-                        <span className="wadd">{isAdded ? <IconCheck /> : "+"}</span>
-                      </button>
-                    );
-                  })
-              }
-            </div>
+            {loading ? (
+              <div className="word-grid">
+                {Array.from({ length: 12 }).map((_, i) => (
+                  <span key={i} className="word-chip skel" style={{ width: 80 + (i % 5) * 20 }}>placeholder</span>
+                ))}
+              </div>
+            ) : (
+              <div className="word-groups" key={extractionId}>
+                {POS_GROUPS.map(g => {
+                  const items = extracted.filter(w => normalizePos(w) === g.key);
+                  if (items.length === 0) return null;
+                  return (
+                    <div className="word-group" key={g.key}>
+                      <div className="word-group-head">
+                        {g.label} <span className="word-group-count">{items.length}</span>
+                      </div>
+                      <div className="word-grid">
+                        {items.map(w => {
+                          const isAdded = added.has(w.word);
+                          return (
+                            <button
+                              key={w.word}
+                              className={`word-chip${isAdded ? " added" : ""}`}
+                              onClick={() => toggleAdd(w)}
+                            >
+                              {w.article && <span className="wart">{w.article}</span>}
+                              <span>{w.word}</span>
+                              <span className="wadd">{isAdded ? <IconCheck /> : "+"}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
           {!loading && (
             <div className="er-foot">
