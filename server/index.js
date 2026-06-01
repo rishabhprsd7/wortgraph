@@ -13,6 +13,10 @@
  *   POST /api/embed/words          — bulk-embed unembedded words
  *   GET  /api/word/relations       — synonyms/antonyms/forms for a word (Graph-RAG output)
  *   POST /api/word/relations/refresh — re-run Graph-RAG classification for a word
+ *   POST /api/meanings/build       — cluster words into (:Meaning) hubs via -[:MEANS]->
+ *   GET  /api/meanings             — list meaning hubs (Concepts search)
+ *   GET  /api/meanings/graph       — meaning-centered subgraph (hub + words + edges)
+ *   GET  /api/word/meanings        — other meanings a word belongs to (click-to-expand)
  *   GET  /api/agent/insight        — 7 graph insight cards (see cypher.js)
  *   GET  /api/agent/suggest        — simple CEFR-based study suggestion
  *   POST /api/agent/chat           — conversational AI coach (Groq LLaMA + Neo4j context)
@@ -28,6 +32,7 @@ import dotenv from 'dotenv';
 import { driver, runQuery, getEmbedding, wordEmbedText, initSchema } from './db.js';
 import { INSIGHT_CYPHERS, CHAT_CONTEXT, buildSystemPrompt } from './cypher.js';
 import { classifyRelations } from './relations.js';
+import { buildMeanings } from './meanings.js';
 
 dotenv.config();
 
@@ -494,6 +499,98 @@ app.post('/api/word/relations/refresh', async (req, res) => {
     res.json(result);
   } catch (e) {
     console.error('Refresh relations error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── Meaning hubs (Concepts) ───────────────────────────────────────────────────
+// (:Meaning {en}) nodes group the user's German words by shared English concept,
+// linked via (:Word)-[:MEANS]->(:Meaning). A hub-and-spoke semantic graph.
+
+// Build/rebuild all meaning hubs for a user (Groq clusters by shared meaning).
+app.post('/api/meanings/build', async (req, res) => {
+  const { userId = 'default' } = req.body;
+  try {
+    const result = await buildMeanings(userId);
+    res.json(result);
+  } catch (e) {
+    console.error('Build meanings error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// List meaning hubs for the search box (each with its German word count).
+app.get('/api/meanings', async (req, res) => {
+  const { userId = 'default' } = req.query;
+  try {
+    const rows = await runQuery(`
+      MATCH (u:User {id: $userId})-[:ADDED]->(w:Word)-[:MEANS]->(m:Meaning)
+      WITH m, count(DISTINCT w) AS wordCount, collect(DISTINCT w.lemma)[0..6] AS sample
+      WHERE wordCount >= 1
+      RETURN m.id AS id, m.en AS en, wordCount, sample
+      ORDER BY wordCount DESC, m.en ASC
+    `, { userId });
+    res.json(rows.map(r => ({
+      id: r.get('id'), en: r.get('en'),
+      wordCount: num(r.get('wordCount')), sample: r.get('sample') || [],
+    })));
+  } catch (e) {
+    console.error('List meanings error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Meaning-centered subgraph: the hub + its German words + the synonym/form
+// edges that exist BETWEEN those words (so the cluster shows inner structure).
+app.get('/api/meanings/graph', async (req, res) => {
+  const { userId = 'default', id } = req.query;
+  if (!id) return res.status(400).json({ error: 'meaning id required' });
+  try {
+    const [wordRows, edgeRows, hubRows] = await Promise.all([
+      runQuery(`
+        MATCH (u:User {id: $userId})-[:ADDED]->(w:Word)-[:MEANS]->(m:Meaning {id: $id})
+        RETURN w.lemma AS lemma, w.article AS article, w.cefr AS cefr,
+               coalesce(w.translation,'') AS translation
+      `, { userId, id }),
+      runQuery(`
+        MATCH (u:User {id: $userId})-[:ADDED]->(a:Word)-[:MEANS]->(m:Meaning {id: $id})
+        MATCH (u)-[:ADDED]->(b:Word)-[:MEANS]->(m)
+        MATCH (a)-[r:SYNONYM_OF|FORM_OF]-(b)
+        WHERE a.lemma < b.lemma
+        RETURN DISTINCT a.lemma AS source, b.lemma AS target, type(r) AS rel
+      `, { userId, id }),
+      runQuery(`MATCH (m:Meaning {id: $id}) RETURN m.en AS en`, { id }),
+    ]);
+    if (hubRows.length === 0) return res.status(404).json({ error: 'meaning not found' });
+    res.json({
+      meaning: { id, en: hubRows[0].get('en') },
+      words: wordRows.map(r => ({
+        lemma: r.get('lemma'), article: r.get('article'),
+        cefr: r.get('cefr'), translation: r.get('translation'),
+      })),
+      edges: edgeRows.map(r => ({
+        source: r.get('source'), target: r.get('target'), rel: r.get('rel'),
+      })),
+    });
+  } catch (e) {
+    console.error('Meaning graph error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Other meanings a given word belongs to (for click-to-expand in the graph).
+app.get('/api/word/meanings', async (req, res) => {
+  const { userId = 'default', word } = req.query;
+  if (!word) return res.status(400).json({ error: 'word required' });
+  try {
+    const rows = await runQuery(`
+      MATCH (u:User {id: $userId})-[:ADDED]->(w:Word {lemma: $word})-[:MEANS]->(m:Meaning)
+      RETURN m.id AS id, m.en AS en
+      ORDER BY m.en
+    `, { userId, word });
+    res.json(rows.map(r => ({ id: r.get('id'), en: r.get('en') })));
+  } catch (e) {
+    console.error('Word meanings error:', e);
     res.status(500).json({ error: e.message });
   }
 });

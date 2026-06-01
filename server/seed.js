@@ -310,6 +310,16 @@ async function main() {
     console.log(`  ✓ Built ${relSyn} synonym · ${relAnt} antonym · ${relForm} form edges${relSkipped ? ` (${relSkipped} words skipped)` : ''}`);
   }
 
+  // 7. Build Meaning hubs (Concepts) — cluster words by shared English meaning.
+  console.log('\nBuilding meaning hubs (Concepts)…');
+  try {
+    const m = await post('/api/meanings/build', { userId: SEED_USER });
+    if (m.error) console.log('  Skipped:', m.error);
+    else console.log(`  ✓ Built ${m.meanings} concept hubs · ${m.edges} MEANS edges`);
+  } catch (e) {
+    console.log('  Meaning build skipped:', e.message);
+  }
+
   console.log('\n✅ Done! Your Neo4j graph now has:');
   console.log('  • 57 words across 7 topics: Politik · Klima · Wirtschaft · Gesellschaft · Technologie · Gesundheit · Debatte');
   console.log('  • Retention tiers: ~15 high · ~19 medium · ~11 stuck · ~12 unreviewed');
@@ -317,8 +327,10 @@ async function main() {
   console.log('  • Dense CO_OCCURS_WITH edges between same-topic words');
   console.log('  • Vector embeddings (if GEMINI_KEY set) for semantic search');
   console.log('  • SYNONYM_OF / ANTONYM_OF / FORM_OF edges from the Graph-RAG pipeline');
+  console.log('  • Meaning hubs: (:Meaning)<-[:MEANS]-(:Word) for the Concepts view');
   console.log('\nRefresh the Agent tab to see all insights populate.');
   console.log('Flip a flashcard in Learn to see related words (synonyms/antonyms/forms).');
+  console.log('Open Concepts to explore English meanings → German words as a graph.');
 }
 
 main().catch(e => { console.error(e); process.exit(1); });

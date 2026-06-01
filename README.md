@@ -91,6 +91,11 @@ When a word is saved, a retrieval-augmented pipeline classifies its relationship
 
 Because retrieval grounds the LLM in real words from the deck, it cannot hallucinate fake synonyms — the candidate set is the constraint. The flashcard back surfaces these as color-coded pills (synonyms green, antonyms red, forms violet). See [`server/relations.js`](server/relations.js).
 
+### 6. Concepts — Meaning Hubs
+A `(:Meaning {en})` node is a single English concept; every German word that expresses it links via `(:Word)-[:MEANS]->(:Meaning)`. This turns a flat word list into a **hub-and-spoke semantic graph** — one English meaning in the centre (e.g. *"decision"*), all the German ways to say it radiating out (*Beschluss, Entscheidung, Entschluss*), interconnected by the synonym/form edges from feature #5.
+
+Groq clusters the user's words by shared meaning (grounded in their real translations, whitelist-checked against the deck), then the **Concepts** tab renders each hub as an interactive force-directed graph. Click any German word to pull in the *other* meanings it belongs to — the graph grows as you explore. See [`server/meanings.js`](server/meanings.js) and [`src/components/Concepts.jsx`](src/components/Concepts.jsx).
+
 ---
 
 ## Graph Schema
@@ -103,6 +108,7 @@ Because retrieval grounds the LLM in real words from the deck, it cannot halluci
 (:Word)-[:SYNONYM_OF {confidence, reason}]->(:Word)   // Graph-RAG
 (:Word)-[:ANTONYM_OF {confidence, reason}]->(:Word)   // Graph-RAG
 (:Word)-[:FORM_OF    {confidence, reason}]->(:Word)   // Graph-RAG
+(:Word)-[:MEANS]->(:Meaning {en})                     // Concept hubs
 ```
 
 ---

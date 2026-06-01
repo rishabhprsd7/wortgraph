@@ -12,6 +12,7 @@ import { Agent } from './components/Agent';
 import { Graph } from './components/Graph';
 import { About } from './components/About';
 import { Arena } from './components/Arena';
+import { Concepts } from './components/Concepts';
 
 function ScreenHeader({ title, sub, right }) {
   return (
@@ -202,6 +203,15 @@ export default function App() {
                   right={<button className="btn btn-ghost btn-sm" onClick={handleExport}>Export data</button>}
                 />
                 <Dashboard userId={userId} />
+              </>
+            )}
+            {route === 'concepts' && (
+              <>
+                <ScreenHeader
+                  title="Concepts"
+                  sub="Every English meaning, with all the German words that express it — one hub, many ways to say it"
+                />
+                <Concepts userId={userId} setRoute={setRoute} />
               </>
             )}
             {route === 'graph' && (
