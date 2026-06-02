@@ -17,23 +17,32 @@ import { runQuery } from './db.js';
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GROQ_MODEL = 'llama-3.3-70b-versatile';
 
-const CLUSTER_PROMPT = (words) => `You are a German lexicographer. Group these German words by shared ENGLISH meaning.
+const CLUSTER_PROMPT = (words) => `You are a German lexicographer building synonym groups. Group these German words by shared ENGLISH meaning — but ONLY true synonyms.
 
-A group is a set of German words that a learner could reach for to express the SAME core English concept (near-synonyms). A word may belong to more than one group if it has distinct senses. Single-word groups are allowed only if the word has no synonym in the list.
+THE TEST for putting two words in the same group:
+Could you swap one German word for the other in a real sentence and have the meaning stay essentially the same? If not, they do NOT belong together.
+
+This means grouping by SHARED MEANING, never by shared TOPIC. Words about the same subject are NOT synonyms:
+- WRONG: {community, equality, solidarity, diversity, membership} — these are all "society" topic words but mean totally different things. Do NOT group them.
+- WRONG: {Gemeinschaft (community), Gleichberechtigung (equality), Solidarität (solidarity)} — same topic, different meanings.
+- RIGHT: {Gemeinschaft, Gemeinde} when both mean "community"; {Beschluss, Entscheidung} when both mean "decision"; {Anstieg, Zunahme} when both mean "increase".
+
+Use the English translations below as the deciding evidence: two words share a group only if their translations describe the SAME concept, not merely a related one.
 
 WORDS (lemma — English translation):
 ${words.map(w => `- ${w.lemma} — ${w.translation || '(no translation)'}`).join('\n')}
 
 Return ONLY a JSON array, no markdown:
 [
-  {"en":"a short English label for the concept (1-2 words, lowercase)","words":["<exact lemma>","<exact lemma>"]}
+  {"en":"short English label for the shared concept (1-2 words, lowercase)","words":["<exact lemma>","<exact lemma>"],"confidence":0.0-1.0}
 ]
 
 RULES:
-- Use ONLY lemmas exactly as given above. Never invent or respell a word.
-- "en" must be a clean English concept, not a German word.
-- Prefer concepts with 2+ German words — that is the interesting structure.
-- It is fine to leave a word out of every group if it shares meaning with nothing.`;
+- A group needs 2+ German words that are genuinely interchangeable. Do NOT emit single-word groups.
+- "confidence" = how sure you are these words are true synonyms (1.0 = interchangeable, 0.5 = loosely related, below 0.5 = don't emit).
+- Be strict. It is far better to leave a word ungrouped than to group words that merely share a topic.
+- A word may join a second group only if it has a genuinely distinct sense (e.g. a word meaning both "decision" and "resolution"). Most words belong to zero or one group.
+- Use ONLY lemmas exactly as given. Never invent or respell a word. "en" must be English, not German.`;
 
 function parseJsonArray(raw) {
   const text = raw.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
@@ -98,13 +107,17 @@ export async function buildMeanings(userId) {
     DELETE m
   `, { userId });
 
-  // 4. Write fresh Meaning nodes + MEANS edges
+  // 4. Write fresh Meaning nodes + MEANS edges.
+  //    Gate on confidence and require 2+ true synonyms — this is what keeps
+  //    topic-mates (community/equality/solidarity) from being grouped.
+  const MIN_CONFIDENCE = 0.7;
   let meaningsCount = 0, edgeCount = 0;
   const written = [];
   for (const g of groups) {
     const en = (g.en || '').trim();
-    const valid = (g.words || []).filter(l => lemmaSet.has(l));
-    if (!en || valid.length === 0) continue;
+    const valid = [...new Set((g.words || []).filter(l => lemmaSet.has(l)))];
+    const conf = g.confidence == null ? 1 : Number(g.confidence) || 0;
+    if (!en || valid.length < 2 || conf < MIN_CONFIDENCE) continue;
     const id = slug(en);
     if (!id) continue;
 
