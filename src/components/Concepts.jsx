@@ -5,6 +5,17 @@ const API_URL = import.meta.env.VITE_API_URL || '';
 const MEANING_COLOR = '#e0a93d';   // gold — English concept hubs
 const WORD_COLOR = '#9d96e8';      // violet — German words
 
+// Stable hash → [0,1). Same input always gives the same value, so the
+// randomness is fixed per node/edge and doesn't jitter every frame.
+function hash01(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return ((h >>> 0) % 100000) / 100000;
+}
+
 // Minimal force layout (adapted from Graph.jsx). Nodes: {id, kind}. Edges: {source,target}.
 function useForce(nodes, edges, w, h) {
   const ref = useRef(null);
@@ -25,10 +36,17 @@ function useForce(nodes, edges, w, h) {
     const cx = w / 2, cy = h / 2;
     const pos = new Map();
 
-    // Seed words evenly in a ring around the centre (hub sits near centre).
+    // Seed words around the centre with a randomised angle + radius per node,
+    // so the layout reads organic instead of a perfectly even compass.
     const words = nodes.filter(n => n.kind !== 'meaning');
     const wordAngle = new Map();
-    words.forEach((n, i) => wordAngle.set(n.id, (i / Math.max(1, words.length)) * Math.PI * 2));
+    const slice = (Math.PI * 2) / Math.max(1, words.length);
+    words.forEach((n, i) => {
+      // Even slice as a base (keeps them spread), plus up to ±60% jitter so
+      // no two sit on a clean cardinal axis.
+      const jitter = (hash01(n.id) - 0.5) * slice * 1.2;
+      wordAngle.set(n.id, i * slice + jitter);
+    });
 
     nodes.forEach((n) => {
       const keep = prev?.get(n.id);
@@ -37,7 +55,8 @@ function useForce(nodes, edges, w, h) {
         pos.set(n.id, { x: cx + (Math.random() - 0.5) * 20, y: cy + (Math.random() - 0.5) * 20, vx: 0, vy: 0 });
       } else {
         const a = wordAngle.get(n.id) ?? Math.random() * Math.PI * 2;
-        const r = Math.min(w, h) * 0.32;
+        // Vary seed radius 0.24–0.42 of the canvas so spokes start uneven.
+        const r = Math.min(w, h) * (0.24 + hash01(n.id + '·r') * 0.18);
         pos.set(n.id, { x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r, vx: 0, vy: 0 });
       }
     });
@@ -67,13 +86,16 @@ function useForce(nodes, edges, w, h) {
         }
 
         // 2. Link springs. Hub spokes are soft + long so crowded words drift
-        //    outward into a second ring instead of stacking on the hub.
+        //    outward into a second ring instead of stacking on the hub. Each
+        //    spoke gets its OWN resting length (hash-based) so some lines are
+        //    long, some short — an organic, non-uniform look.
         for (const e of edges) {
           const p = st.pos.get(e.source), q = st.pos.get(e.target);
           if (!p || !q) continue;
           const dx = q.x - p.x, dy = q.y - p.y;
           const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-          const target = e.hub ? 150 : 90;
+          const wobble = hash01(e.source + '→' + e.target); // 0..1, stable
+          const target = e.hub ? 120 + wobble * 90 : 80 + wobble * 40;
           const f = (dist - target) * (e.hub ? 0.045 : 0.04);
           p.vx += (dx / dist) * f; p.vy += (dy / dist) * f;
           q.vx -= (dx / dist) * f; q.vy -= (dy / dist) * f;
