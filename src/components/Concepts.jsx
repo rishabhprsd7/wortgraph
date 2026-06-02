@@ -10,17 +10,36 @@ function useForce(nodes, edges, w, h) {
   const ref = useRef(null);
   const [, tick] = useState(0);
 
+  // Collision radius accounts for the label, not just the dot — labels are the
+  // thing that visually overlaps. Estimate label half-width from text length.
+  const collideR = (n) => {
+    const text = n.kind === 'meaning' ? (n.en || '') : (n.lemma || '');
+    const dotR = n.kind === 'meaning' ? 18 : 12;
+    const labelHalf = text.length * 4.2;           // ~font 12-14px
+    return Math.max(dotR + 14, labelHalf + 6);
+  };
+
   useEffect(() => {
     if (!nodes.length) { ref.current = null; return; }
     const prev = ref.current?.pos;
     const cx = w / 2, cy = h / 2;
     const pos = new Map();
-    nodes.forEach((n, i) => {
+
+    // Seed words evenly in a ring around the centre (hub sits near centre).
+    const words = nodes.filter(n => n.kind !== 'meaning');
+    const wordAngle = new Map();
+    words.forEach((n, i) => wordAngle.set(n.id, (i / Math.max(1, words.length)) * Math.PI * 2));
+
+    nodes.forEach((n) => {
       const keep = prev?.get(n.id);
       if (keep) { pos.set(n.id, keep); return; }
-      const a = (i / nodes.length) * Math.PI * 2;
-      const r = Math.min(w, h) * 0.28;
-      pos.set(n.id, { x: cx + Math.cos(a) * r + (Math.random() - 0.5) * 40, y: cy + Math.sin(a) * r + (Math.random() - 0.5) * 40, vx: 0, vy: 0 });
+      if (n.kind === 'meaning') {
+        pos.set(n.id, { x: cx + (Math.random() - 0.5) * 20, y: cy + (Math.random() - 0.5) * 20, vx: 0, vy: 0 });
+      } else {
+        const a = wordAngle.get(n.id) ?? Math.random() * Math.PI * 2;
+        const r = Math.min(w, h) * 0.32;
+        pos.set(n.id, { x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r, vx: 0, vy: 0 });
+      }
     });
     ref.current = { pos, alpha: 1 };
   }, [nodes, w, h]);
@@ -29,7 +48,10 @@ function useForce(nodes, edges, w, h) {
     let raf;
     const step = () => {
       const st = ref.current;
-      if (st && st.alpha > 0.01) {
+      if (st && st.alpha > 0.005) {
+        const cx = w / 2, cy = h / 2;
+
+        // 1. Charge repulsion — strong, so nodes fan out in all directions.
         for (const n of nodes) {
           const p = st.pos.get(n.id); if (!p) continue;
           for (const m of nodes) {
@@ -37,30 +59,59 @@ function useForce(nodes, edges, w, h) {
             const q = st.pos.get(m.id); if (!q) continue;
             const dx = p.x - q.x, dy = p.y - q.y;
             const d2 = dx * dx + dy * dy + 0.01;
-            const f = 3600 / d2;
-            p.vx += (dx / Math.sqrt(d2)) * f * 0.001;
-            p.vy += (dy / Math.sqrt(d2)) * f * 0.001;
+            const f = 14000 / d2;
+            const d = Math.sqrt(d2);
+            p.vx += (dx / d) * f * 0.001;
+            p.vy += (dy / d) * f * 0.001;
           }
         }
+
+        // 2. Link springs. Hub spokes are soft + long so crowded words drift
+        //    outward into a second ring instead of stacking on the hub.
         for (const e of edges) {
           const p = st.pos.get(e.source), q = st.pos.get(e.target);
           if (!p || !q) continue;
           const dx = q.x - p.x, dy = q.y - p.y;
           const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-          // Hub spokes pull tighter than word-word synonym links.
-          const target = e.hub ? 110 : 70;
-          const f = (dist - target) * (e.hub ? 0.08 : 0.05);
+          const target = e.hub ? 150 : 90;
+          const f = (dist - target) * (e.hub ? 0.045 : 0.04);
           p.vx += (dx / dist) * f; p.vy += (dy / dist) * f;
           q.vx -= (dx / dist) * f; q.vy -= (dy / dist) * f;
         }
-        const cx = w / 2, cy = h / 2;
+
+        // 3. Gentle centring.
         for (const n of nodes) {
           const p = st.pos.get(n.id); if (!p) continue;
-          p.vx += (cx - p.x) * 0.014; p.vy += (cy - p.y) * 0.014;
-          p.vx *= 0.85; p.vy *= 0.85;
+          const pull = n.kind === 'meaning' ? 0.02 : 0.006;
+          p.vx += (cx - p.x) * pull; p.vy += (cy - p.y) * pull;
+          p.vx *= 0.82; p.vy *= 0.82;
           p.x += p.vx * st.alpha; p.y += p.vy * st.alpha;
         }
-        st.alpha *= 0.99;
+
+        // 4. Hard collision pass — circles (incl. labels) never overlap.
+        //    Run a few iterations so dense clusters fully separate.
+        for (let iter = 0; iter < 3; iter++) {
+          for (let i = 0; i < nodes.length; i++) {
+            const a = nodes[i], pa = st.pos.get(a.id); if (!pa) continue;
+            const ra = collideR(a);
+            for (let j = i + 1; j < nodes.length; j++) {
+              const b = nodes[j], pb = st.pos.get(b.id); if (!pb) continue;
+              const rb = collideR(b);
+              let dx = pb.x - pa.x, dy = pb.y - pa.y;
+              let dist = Math.sqrt(dx * dx + dy * dy);
+              const min = ra + rb;
+              if (dist < min) {
+                if (dist < 0.01) { dx = Math.random() - 0.5; dy = Math.random() - 0.5; dist = 0.5; }
+                const push = (min - dist) / 2;
+                const ux = dx / dist, uy = dy / dist;
+                pa.x -= ux * push; pa.y -= uy * push;
+                pb.x += ux * push; pb.y += uy * push;
+              }
+            }
+          }
+        }
+
+        st.alpha *= 0.985;
         tick(x => x + 1);
       }
       raf = requestAnimationFrame(step);
@@ -210,7 +261,10 @@ export function Concepts({ userId, setRoute }) {
         <div className="panel" style={{ padding: 0 }}>
           <div className="panel-h" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span className="t">“{activeEn}” — ways to say it in German</span>
-            <button className="btn btn-ghost btn-sm" onClick={backToSearch}>← All concepts</button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-ghost btn-sm" onClick={() => { reheat(); setTransform({ x: 0, y: 0, scale: 1 }); }}>Re-layout</button>
+              <button className="btn btn-ghost btn-sm" onClick={backToSearch}>← All concepts</button>
+            </div>
           </div>
         </div>
 
