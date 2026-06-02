@@ -1071,6 +1071,21 @@ body.dark .face-front.face-review    { background: linear-gradient(180deg, rgba(
 }
 .word-chip.added .wart { color: var(--green); opacity: 0.7; }
 .word-chip.added .wadd { background: var(--green); color: white; }
+.word-chip.unverified {
+  border-color: rgba(186,117,23,0.5);
+  border-style: dashed;
+}
+.word-chip .wflag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px; height: 15px;
+  border-radius: 50%;
+  background: var(--amber-soft);
+  color: var(--amber-text);
+  font-size: 11px;
+  font-weight: 700;
+}
 .word-chip.skel {
   background: linear-gradient(90deg, var(--bg-3) 0%, var(--bg-2) 50%, var(--bg-3) 100%);
   background-size: 200% 100%;

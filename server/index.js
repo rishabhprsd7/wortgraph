@@ -11,6 +11,7 @@
  *   GET  /api/graph                — nodes + edges for graph visualisation
  *   GET  /api/search/similar       — semantic similarity search (Gemini embeddings)
  *   POST /api/embed/words          — bulk-embed unembedded words
+ *   POST /api/verify               — verify lemmas exist in Wiktionary (anti-hallucination)
  *   GET  /api/word/relations       — synonyms/antonyms/forms for a word (Graph-RAG output)
  *   POST /api/word/relations/refresh — re-run Graph-RAG classification for a word
  *   POST /api/meanings/build       — cluster words into (:Meaning) hubs via -[:MEANS]->
@@ -33,6 +34,7 @@ import { driver, runQuery, getEmbedding, wordEmbedText, initSchema } from './db.
 import { INSIGHT_CYPHERS, CHAT_CONTEXT, buildSystemPrompt } from './cypher.js';
 import { classifyRelations } from './relations.js';
 import { buildMeanings } from './meanings.js';
+import { verifyWords } from './dictionary.js';
 
 dotenv.config();
 
@@ -499,6 +501,21 @@ app.post('/api/word/relations/refresh', async (req, res) => {
     res.json(result);
   } catch (e) {
     console.error('Refresh relations error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── Dictionary verification (retrieval-augmented) ─────────────────────────────
+// Look words up in Wiktionary to catch hallucinated/misspelled lemmas before
+// they reach the deck. Browser can't call Wiktionary (CORS) — server proxies it.
+app.post('/api/verify', async (req, res) => {
+  const { words } = req.body;
+  if (!Array.isArray(words)) return res.status(400).json({ error: 'words array required' });
+  try {
+    const result = await verifyWords(words);
+    res.json(result);
+  } catch (e) {
+    console.error('Verify error:', e);
     res.status(500).json({ error: e.message });
   }
 });

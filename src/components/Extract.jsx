@@ -165,6 +165,25 @@ async function extractGrammarTopics(text) {
   return parseJsonArray(data.choices[0].message.content.trim());
 }
 
+// Retrieval-augmented anti-hallucination: ask the server to check each lemma
+// against Wiktionary. Annotates each word with `verified` (true/false/null).
+// Fail-open — if the call breaks, words pass through unannotated.
+async function annotateVerification(words) {
+  if (!API_URL || words.length === 0) return words;
+  try {
+    const res = await fetch(`${API_URL}/api/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ words: words.map(w => w.word) }),
+    });
+    if (!res.ok) return words;
+    const map = await res.json();
+    return words.map(w => ({ ...w, verified: map[w.word]?.verified }));
+  } catch {
+    return words;
+  }
+}
+
 async function saveWordsToDeck(words, source, snippet, userId, grammarTopics) {
   if (!API_URL) throw new Error('VITE_API_URL is not set in .env');
   const res = await fetch(`${API_URL}/api/words`, {
@@ -260,7 +279,8 @@ export function Extract({ userId }) {
           withRetry(() => extractWithGroq(text, source)),
           withRetry(() => extractGrammarTopics(text)).catch(() => []),
         ]);
-        saveExtracted(dedupeByLemma(words));
+        const deduped = dedupeByLemma(words);
+        saveExtracted(await annotateVerification(deduped));
         saveGrammar(grammar);
       } else {
         saveExtracted(dedupeByLemma(fallbackExtract(text)));
@@ -287,9 +307,13 @@ export function Extract({ userId }) {
       const results = await withRetry(() => validateCustomWords(words));
       const valid = results.filter(r => r.valid);
       const invalid = results.filter(r => !r.valid);
-      saveExtracted(valid);
+      // Cross-check the LLM's "valid" words against Wiktionary. A word the LLM
+      // accepted but the dictionary can't find is likely a hallucination.
+      const verified = await annotateVerification(valid);
+      saveExtracted(verified);
       setInvalidWords(invalid);
-      saveAdded(() => new Set(valid.map(w => w.word)));
+      // Pre-select everything except known hallucinations (verified === false).
+      saveAdded(() => new Set(verified.filter(w => w.verified !== false).map(w => w.word)));
     } catch (e) {
       setError(`Error: ${e.message}`);
     } finally {
@@ -491,6 +515,11 @@ export function Extract({ userId }) {
               {loading ? "Analyzing with Groq AI…" : `${extracted.length} words · ${source}`}
             </span>
           </div>
+          {!loading && extracted.some(w => w.verified === false) && (
+            <div style={{ margin: '0 20px', padding: '8px 12px', borderRadius: 8, background: 'var(--amber-soft)', border: '1px solid rgba(186,117,23,0.40)', fontSize: 12.5, color: 'var(--amber-text)', lineHeight: 1.5 }}>
+              Words marked <b>?</b> weren’t found in Wiktionary — they may be misspelled or not real German. They’re left unselected; verify before adding.
+            </div>
+          )}
           <div className="er-body">
             {loading ? (
               <div className="word-grid">
@@ -511,14 +540,17 @@ export function Extract({ userId }) {
                       <div className="word-grid">
                         {items.map(w => {
                           const isAdded = added.has(w.word);
+                          const unverified = w.verified === false;
                           return (
                             <button
                               key={w.word}
-                              className={`word-chip${isAdded ? " added" : ""}`}
+                              className={`word-chip${isAdded ? " added" : ""}${unverified ? " unverified" : ""}`}
                               onClick={() => toggleAdd(w)}
+                              title={unverified ? "Not found in Wiktionary — may not be a real German word" : undefined}
                             >
                               {w.article && <span className="wart">{w.article}</span>}
                               <span>{w.word}</span>
+                              {unverified && <span className="wflag" title="Not in dictionary">?</span>}
                               <span className="wadd">{isAdded ? <IconCheck /> : "+"}</span>
                             </button>
                           );
