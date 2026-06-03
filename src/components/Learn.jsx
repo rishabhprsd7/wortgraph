@@ -2,10 +2,9 @@ import { useState, useEffect } from 'react';
 import { flashcards as staticCards, CEFR_COLOR } from '../data/vocab';
 import { Flashcards } from './Flashcards';
 import { GrammarPanel } from './GrammarPanel';
+import { groqChat, groqAvailable } from '../groqClient';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
-const GROQ_KEY = import.meta.env.VITE_GROQ_KEY;
-const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
 async function generateGrammarForSource(snippet) {
   const prompt = `Identify 3-5 important grammar patterns in this German text that a B1+ learner should notice. Return ONLY a JSON array, no markdown, no explanation.
@@ -13,13 +12,11 @@ Each item: {"topic":"short name of the grammar pattern","form":"the exact gramma
 
 Text:
 ${snippet}`;
-  const res = await fetch(GROQ_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEY}` },
-    body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: [{ role: 'user', content: prompt }], temperature: 0.2, max_tokens: 1024 })
+  const data = await groqChat({
+    messages: [{ role: 'user', content: prompt }],
+    temperature: 0.2,
+    max_tokens: 1024,
   });
-  if (!res.ok) throw new Error(`Groq ${res.status}`);
-  const data = await res.json();
   const raw = data.choices[0].message.content.trim();
   const match = raw.match(/\[[\s\S]*\]/);
   return JSON.parse(match ? match[0] : raw);
@@ -376,7 +373,7 @@ export function Learn({ userId, setRoute }) {
                       <div style={{ fontSize: 14, color: 'var(--ink-3)', marginBottom: 20 }}>
                         No grammar topics yet for this source.
                       </div>
-                      {GROQ_KEY && currentSource?.snippet && (
+                      {groqAvailable && currentSource?.snippet && (
                         <button
                           className="btn btn-primary btn-sm"
                           onClick={handleGenerateGrammar}

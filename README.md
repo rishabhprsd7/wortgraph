@@ -135,16 +135,22 @@ NEO4J_URI=neo4j+s://your-instance.databases.neo4j.io
 NEO4J_USER=neo4j
 NEO4J_PASSWORD=your-password
 NEO4J_DATABASE=neo4j
-GROQ_KEY=gsk_...
-GEMINI_KEY=AIza...   # optional
+GROQ_KEY=gsk_...           # server-only — proxied via /api/groq/chat, never sent to the browser
+GEMINI_KEY=AIza...         # optional
+ADMIN_KEY=some-long-secret # required to call the admin wipe/seed endpoints
 PORT=3001
 FRONTEND_URL=http://localhost:5173
 ```
 
+The frontend no longer holds the Groq key. All LLM calls go through the server
+proxy (`POST /api/groq/chat`), so the key stays private. The destructive admin
+endpoints (`/api/admin/clear`, `/api/admin/seed-bridges`) require the
+`x-admin-key` header to match `ADMIN_KEY`.
+
 ### Seed demo data
 ```bash
 cd server
-node seed.js
+ADMIN_KEY=some-long-secret node seed.js   # ADMIN_KEY must match the server's
 ```
 
 Inserts 57 curated German words across 7 topics (Politik, Klima, Wirtschaft, Gesellschaft, Technologie, Gesundheit, Debatte) with simulated retention data covering all insight panels, then runs the Graph-RAG pipeline to build synonym/antonym/form_of edges. The Debatte batch is chosen to surface clear relations (e.g. *Vorteil*↔*Nachteil* antonyms, *entscheiden*↔*Entscheidung* forms).

@@ -1,7 +1,6 @@
-const GROQ_KEY = import.meta.env.VITE_GROQ_KEY;
-const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
+import { groqChat, groqAvailable } from '../groqClient';
 
-export const plannerAvailable = !!GROQ_KEY;
+export const plannerAvailable = groqAvailable;
 
 // Turns a natural-language message into { reply, gameId }.
 // The agent only picks from the registered games it's given.
@@ -20,18 +19,11 @@ Rules:
 - If they're vague or just chatting, set game to null and ask one short clarifying question or suggest two options by name.
 - reply must be under 28 words, warm, and must NOT mention JSON or game ids.`;
 
-  const res = await fetch(GROQ_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEY}` },
-    body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
-      temperature: 0.3,
-      max_tokens: 200,
-      messages: [{ role: 'system', content: sys }, ...history.slice(-4), { role: 'user', content: message }],
-    }),
+  const data = await groqChat({
+    temperature: 0.3,
+    max_tokens: 200,
+    messages: [{ role: 'system', content: sys }, ...history.slice(-4), { role: 'user', content: message }],
   });
-  if (!res.ok) throw new Error(`Groq ${res.status}`);
-  const data = await res.json();
   const txt = (data.choices[0].message.content || '').trim();
   let parsed;
   try {

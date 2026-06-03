@@ -3,6 +3,7 @@
  *
  * Routes overview:
  *   GET  /health                   — liveness check
+ *   POST /api/groq/chat            — server-side Groq proxy (keeps API key private)
  *   POST /api/words                — save extracted words to graph
  *   GET  /api/words                — fetch user's deck (optionally filtered by source)
  *   GET  /api/sources              — list sources with word counts
@@ -24,8 +25,8 @@
  *   GET  /api/agent/suggest        — simple CEFR-based study suggestion
  *   POST /api/agent/chat           — conversational AI coach (Groq LLaMA + Neo4j context)
  *   POST /api/backfill             — repair CO_OCCURS_WITH / BELONGS_TO edges
- *   DELETE /api/admin/clear        — wipe all data (seed script only)
- *   POST /api/admin/seed-bridges   — insert bridge-word candidates (seed script only)
+ *   DELETE /api/admin/clear        — wipe all data (requires x-admin-key header)
+ *   POST /api/admin/seed-bridges   — insert bridge-word candidates (requires x-admin-key header)
  */
 
 import express from 'express';
@@ -53,6 +54,51 @@ app.use(express.json());
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const num = (v) => v?.toNumber?.() ?? v ?? 0;
+
+// Admin guard: protect destructive endpoints behind a shared secret. Set
+// ADMIN_KEY in the server env; clients send it as the x-admin-key header.
+// If ADMIN_KEY is unset we refuse (fail-closed) rather than allow anyone.
+function requireAdmin(req, res, next) {
+  const expected = process.env.ADMIN_KEY;
+  if (!expected) return res.status(503).json({ error: 'admin disabled: ADMIN_KEY not set on server' });
+  if (req.headers['x-admin-key'] !== expected) return res.status(403).json({ error: 'forbidden' });
+  next();
+}
+
+// ── Groq proxy ────────────────────────────────────────────────────────────────
+// Keeps the Groq API key server-side. The browser posts the usual OpenAI-style
+// chat body here and we forward it with the key attached. Only a whitelist of
+// fields is passed through so this can't be used as an open relay.
+const GROQ_CHAT_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const GROQ_ALLOWED_MODELS = new Set(['llama-3.3-70b-versatile']);
+
+app.post('/api/groq/chat', async (req, res) => {
+  if (!process.env.GROQ_KEY) return res.status(503).json({ error: 'GROQ_KEY not set on server' });
+  const { model, messages, temperature, max_tokens, seed } = req.body || {};
+  if (!Array.isArray(messages) || messages.length === 0) {
+    return res.status(400).json({ error: 'messages array required' });
+  }
+  const useModel = GROQ_ALLOWED_MODELS.has(model) ? model : 'llama-3.3-70b-versatile';
+  const body = {
+    model: useModel,
+    messages,
+    temperature: typeof temperature === 'number' ? temperature : 0.2,
+    max_tokens: Math.min(typeof max_tokens === 'number' ? max_tokens : 1024, 4096),
+  };
+  if (typeof seed === 'number') body.seed = seed;
+  try {
+    const r = await fetch(GROQ_CHAT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.GROQ_KEY}` },
+      body: JSON.stringify(body),
+    });
+    const data = await r.json().catch(() => ({}));
+    res.status(r.status).json(data);
+  } catch (e) {
+    console.error('Groq proxy error:', e.message);
+    res.status(502).json({ error: 'groq upstream failed' });
+  }
+});
 
 // ── Health ────────────────────────────────────────────────────────────────────
 
@@ -125,7 +171,7 @@ app.get('/api/diag', async (_, res) => {
 
 // ── Admin (seed script only) ──────────────────────────────────────────────────
 
-app.delete('/api/admin/clear', async (req, res) => {
+app.delete('/api/admin/clear', requireAdmin, async (req, res) => {
   try {
     await runQuery('MATCH (n) DETACH DELETE n');
     res.json({ ok: true });
@@ -134,7 +180,7 @@ app.delete('/api/admin/clear', async (req, res) => {
   }
 });
 
-app.post('/api/admin/seed-bridges', async (req, res) => {
+app.post('/api/admin/seed-bridges', requireAdmin, async (req, res) => {
   const { bridges } = req.body;
   if (!Array.isArray(bridges)) return res.status(400).json({ error: 'bridges array required' });
   try {

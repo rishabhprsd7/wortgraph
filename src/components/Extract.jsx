@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import { extractedWords, sampleText } from '../data/vocab';
 import { IconKeyboard, IconPaste, IconCheck } from './Icons';
+import { groqChat, groqAvailable } from '../groqClient';
 
-const GROQ_KEY = import.meta.env.VITE_GROQ_KEY;
-const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const API_URL = import.meta.env.VITE_API_URL || '';
 
 const LIMITS = {
@@ -123,21 +122,11 @@ function parseJsonArray(raw) {
 }
 
 async function extractWithGroq(text, source) {
-  const res = await fetch(GROQ_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${GROQ_KEY}`
-    },
-    body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
-      messages: [{ role: 'user', content: PROMPT(text, source) }],
-      temperature: 0.1,
-      max_tokens: 4096
-    })
+  const data = await groqChat({
+    messages: [{ role: 'user', content: PROMPT(text, source) }],
+    temperature: 0.1,
+    max_tokens: 4096,
   });
-  if (!res.ok) throw new Error(`Groq error ${res.status}: ${await res.text()}`);
-  const data = await res.json();
   return parseJsonArray(data.choices[0].message.content.trim());
 }
 
@@ -150,18 +139,11 @@ function fallbackExtract(text) {
 }
 
 async function extractGrammarTopics(text) {
-  const res = await fetch(GROQ_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEY}` },
-    body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
-      messages: [{ role: 'user', content: GRAMMAR_PROMPT(text) }],
-      temperature: 0.2,
-      max_tokens: 1024,
-    })
+  const data = await groqChat({
+    messages: [{ role: 'user', content: GRAMMAR_PROMPT(text) }],
+    temperature: 0.2,
+    max_tokens: 1024,
   });
-  if (!res.ok) throw new Error(`Groq grammar error ${res.status}`);
-  const data = await res.json();
   return parseJsonArray(data.choices[0].message.content.trim());
 }
 
@@ -207,13 +189,11 @@ The suggestion field must ALWAYS contain a real German word or phrase — treat 
 
 Words/phrases to validate: ${list}`;
 
-  const res = await fetch(GROQ_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEY}` },
-    body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: [{ role: 'user', content: prompt }], temperature: 0.1, max_tokens: 2048 })
+  const data = await groqChat({
+    messages: [{ role: 'user', content: prompt }],
+    temperature: 0.1,
+    max_tokens: 2048,
   });
-  if (!res.ok) throw new Error(`Groq error ${res.status}`);
-  const data = await res.json();
   return parseJsonArray(data.choices[0].message.content.trim());
 }
 
@@ -256,7 +236,7 @@ export function Extract({ userId }) {
     setError(null);
   }, [mode]);
 
-  const hasApiKey = !!GROQ_KEY;
+  const hasApiKey = groqAvailable;
   const sources = ["Text", "YouTube"];
   const isUrl = /^https?:\/\/\S+$/.test(text.trim());
   const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
@@ -422,7 +402,7 @@ export function Extract({ userId }) {
         <div className="dz-sub">
           {hasApiKey
             ? "Powered by Groq AI · extracts real vocabulary from any text"
-            : "Add VITE_GROQ_KEY to .env to enable AI extraction"}
+            : "Connect the backend (VITE_API_URL) to enable AI extraction"}
         </div>
         <textarea
           className="dz-textarea"

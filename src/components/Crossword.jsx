@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { flashcards as staticCards } from '../data/vocab';
+import { groqChat } from '../groqClient';
 
-const GROQ_KEY = import.meta.env.VITE_GROQ_KEY;
 const API_URL  = import.meta.env.VITE_API_URL || '';
 const GSZ = 21;
 
@@ -110,12 +110,11 @@ ${list}
 Return ONLY a JSON array (no markdown, no code block):
 [{"word":"exactword","clue":"English clue here","clueDE":"Deutsche Beschreibung hier"}]`;
 
-  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method:'POST',
-    headers:{'Content-Type':'application/json','Authorization':`Bearer ${GROQ_KEY}`},
-    body:JSON.stringify({model:'llama-3.3-70b-versatile',messages:[{role:'user',content:prompt}],temperature:0.6,max_tokens:2400})
+  const data = await groqChat({
+    messages:[{role:'user',content:prompt}],
+    temperature:0.6,
+    max_tokens:2400,
   });
-  const data = await res.json();
   const raw = data.choices[0].message.content.trim();
   const match = raw.match(/\[[\s\S]*\]/);
   const arr = JSON.parse(match?match[0]:raw);

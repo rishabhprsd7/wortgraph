@@ -1,7 +1,5 @@
 import { useState } from 'react';
-
-const GROQ_KEY = import.meta.env.VITE_GROQ_KEY;
-const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
+import { groqChat, groqAvailable } from '../groqClient';
 
 async function withRetry(fn, attempts = 3) {
   for (let i = 0; i < attempts; i++) {
@@ -30,18 +28,11 @@ Return ONLY this JSON (no markdown):
   "oneMore": {"de": "one new German sentence using the same pattern", "en": "English translation"}
 }`;
 
-  const res = await fetch(GROQ_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEY}` },
-    body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.2,
-      max_tokens: 600,
-    })
+  const data = await groqChat({
+    messages: [{ role: 'user', content: prompt }],
+    temperature: 0.2,
+    max_tokens: 600,
   });
-  if (!res.ok) throw new Error(`Groq error ${res.status}`);
-  const data = await res.json();
   const raw = data.choices[0].message.content.trim();
   const match = raw.match(/\{[\s\S]*\}/);
   return JSON.parse(match ? match[0] : raw);
@@ -110,7 +101,7 @@ export function GrammarPanel({ grammarTopics = [], compact = false }) {
                     }}>{g.form}</span>
                   )}
                 </div>
-                {GROQ_KEY && (
+                {groqAvailable && (
                   <button
                     onClick={() => handleExpand(i, g)}
                     style={{

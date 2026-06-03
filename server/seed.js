@@ -179,10 +179,14 @@ const reviewScripts = {
   Rückgang:           [],
 };
 
+// Admin endpoints require this header; set ADMIN_KEY to match the server.
+const ADMIN_KEY = process.env.ADMIN_KEY || '';
+const adminHeaders = ADMIN_KEY ? { 'x-admin-key': ADMIN_KEY } : {};
+
 async function post(path, body) {
   const res = await fetch(`${API}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...adminHeaders },
     body: JSON.stringify(body),
   });
   if (!res.ok) {
@@ -203,7 +207,7 @@ async function main() {
 
   // 1. Wipe existing data
   console.log('Clearing existing data…');
-  const clearRes = await fetch(`${API}/api/admin/clear`, { method: 'DELETE' });
+  const clearRes = await fetch(`${API}/api/admin/clear`, { method: 'DELETE', headers: adminHeaders });
   if (!clearRes.ok) throw new Error(`Clear failed: ${await clearRes.text()}`);
   console.log('Database cleared\n');
 
