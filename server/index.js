@@ -12,6 +12,8 @@
  *   GET  /api/search/similar       — semantic similarity search (Gemini embeddings)
  *   POST /api/embed/words          — bulk-embed unembedded words
  *   POST /api/verify               — verify lemmas exist in Wiktionary (anti-hallucination)
+ *   GET  /api/deck/audit           — flag deck words not found in Wiktionary
+ *   DELETE /api/word               — remove a word from the user's deck (+ orphan cleanup)
  *   GET  /api/word/relations       — synonyms/antonyms/forms for a word (Graph-RAG output)
  *   POST /api/word/relations/refresh — re-run Graph-RAG classification for a word
  *   POST /api/meanings/build       — cluster words into (:Meaning) hubs via -[:MEANS]->
@@ -516,6 +518,62 @@ app.post('/api/verify', async (req, res) => {
     res.json(result);
   } catch (e) {
     console.error('Verify error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Audit the user's whole deck against Wiktionary — returns only the words that
+// are definitively NOT found (likely hallucinations/misspellings). Single-word
+// lemmas only; phrases and lookup failures are treated as "fine" (fail-open).
+app.get('/api/deck/audit', async (req, res) => {
+  const { userId = 'default' } = req.query;
+  try {
+    const rows = await runQuery(`
+      MATCH (u:User {id: $userId})-[r:ADDED]->(w:Word)
+      RETURN w.lemma AS lemma, w.article AS article, coalesce(w.translation,'') AS translation,
+             coalesce(r.reviewCount,0) AS reviewCount
+      ORDER BY w.lemma
+    `, { userId });
+    const words = rows.map(r => ({
+      lemma: r.get('lemma'), article: r.get('article') || '',
+      translation: r.get('translation'), reviewCount: num(r.get('reviewCount')),
+    }));
+    const verifyMap = await verifyWords(words.map(w => w.lemma));
+    // Only surface definitive misses (verified === false). null = unknown → keep.
+    const flagged = words.filter(w => verifyMap[w.lemma]?.verified === false);
+    res.json({ total: words.length, checked: Object.keys(verifyMap).length, flagged });
+  } catch (e) {
+    console.error('Deck audit error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Remove a word from THIS user's deck. Detaches the user's ADDED edge; if no
+// other user still has the word, the Word node (and its edges) is deleted too.
+app.delete('/api/word', async (req, res) => {
+  const { userId = 'default', word } = req.body;
+  if (!word) return res.status(400).json({ error: 'word required' });
+  try {
+    await runQuery(`
+      MATCH (u:User {id: $userId})-[r:ADDED]->(w:Word {lemma: $word})
+      DELETE r
+    `, { userId, word });
+    // Orphan cleanup: if nobody else added this word, remove the node entirely
+    // (DETACH also drops its CO_OCCURS_WITH / SYNONYM_OF / MEANS / etc edges).
+    await runQuery(`
+      MATCH (w:Word {lemma: $word})
+      WHERE NOT ( (:User)-[:ADDED]->(w) )
+      DETACH DELETE w
+    `, { word });
+    // Garbage-collect any Meaning hub left with fewer than 2 words.
+    await runQuery(`
+      MATCH (m:Meaning)
+      WHERE COUNT { (:Word)-[:MEANS]->(m) } < 2
+      DETACH DELETE m
+    `);
+    res.json({ ok: true, word });
+  } catch (e) {
+    console.error('Delete word error:', e);
     res.status(500).json({ error: e.message });
   }
 });

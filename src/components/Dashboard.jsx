@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { IconDeck } from './Icons';
 import { CEFR_COLOR } from '../data/vocab';
+import { DeckCleanup } from './DeckCleanup';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
@@ -23,7 +24,7 @@ export function Dashboard({ userId }) {
   const [sources, setSources] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchDeck = useCallback(() => {
     if (!API_URL) { setLoading(false); return; }
     const q = userId ? `?userId=${encodeURIComponent(userId)}` : '';
     Promise.all([
@@ -35,7 +36,9 @@ export function Dashboard({ userId }) {
       setWeakWords(Array.isArray(wk) ? wk : []);
       setSources(Array.isArray(s) ? s : []);
     }).finally(() => setLoading(false));
-  }, []);
+  }, [userId]);
+
+  useEffect(() => { fetchDeck(); }, [fetchDeck]);
 
   const reviewed = words.filter(w => w.reviewCount > 0);
   const avgRetention = reviewed.length > 0
@@ -53,6 +56,8 @@ export function Dashboard({ userId }) {
 
   return (
     <>
+      <DeckCleanup userId={userId} onChange={fetchDeck} />
+
       {/* Metrics row */}
       <div className="metrics">
         {metrics.map(m => (
