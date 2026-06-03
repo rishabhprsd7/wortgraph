@@ -131,7 +131,8 @@ export async function classifyRelations(targetLemma, userId, opts = {}) {
     body: JSON.stringify({
       model: GROQ_MODEL,
       messages: [{ role: 'user', content: CLASSIFY_PROMPT(target, candidates) }],
-      temperature: 0.1,
+      temperature: 0,
+      seed: 42,
       max_tokens: 2048,
     }),
   });

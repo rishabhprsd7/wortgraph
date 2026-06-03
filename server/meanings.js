@@ -84,14 +84,17 @@ export async function buildMeanings(userId) {
 
   const lemmaSet = new Set(words.map(w => w.lemma));
 
-  // 2. Ask Groq to cluster by shared English meaning
+  // 2. Ask Groq to cluster by shared English meaning.
+  //    Clustering is classification, not generation — temperature 0 + a fixed
+  //    seed make the same deck produce the same groups run to run.
   const res = await fetch(GROQ_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.GROQ_KEY}` },
     body: JSON.stringify({
       model: GROQ_MODEL,
       messages: [{ role: 'user', content: CLUSTER_PROMPT(words) }],
-      temperature: 0.1,
+      temperature: 0,
+      seed: 42,
       max_tokens: 3000,
     }),
   });
