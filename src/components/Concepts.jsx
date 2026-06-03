@@ -285,7 +285,7 @@ export function Concepts({ userId, setRoute }) {
             <span className="t">“{activeEn}” — ways to say it in German</span>
             <div style={{ display: 'flex', gap: 8 }}>
               <button className="btn btn-ghost btn-sm" onClick={() => { reheat(); setTransform({ x: 0, y: 0, scale: 1 }); }}>Re-layout</button>
-              <button className="btn btn-ghost btn-sm" onClick={backToSearch}>← All concepts</button>
+              <button className="btn btn-ghost btn-sm" onClick={backToSearch}>← All clusters</button>
             </div>
           </div>
         </div>
@@ -378,7 +378,7 @@ RETURN a.lemma, type(r), b.lemma`}</pre>
         <input
           value={query}
           onChange={e => setQuery(e.target.value)}
-          placeholder="Search a concept or word — e.g. “decision”, “increase”…"
+          placeholder="Search a cluster or word — e.g. “decision”, “increase”…"
           style={{
             width: '100%', padding: '12px 16px', fontSize: 15, borderRadius: 12,
             border: '1.5px solid var(--line)', background: 'var(--bg)', color: 'var(--ink)', outline: 'none',
@@ -386,14 +386,14 @@ RETURN a.lemma, type(r), b.lemma`}</pre>
         />
       </div>
 
-      {hubs === null && <div style={{ textAlign: 'center', padding: 50, color: 'var(--ink-3)' }}>Loading concepts…</div>}
+      {hubs === null && <div style={{ textAlign: 'center', padding: 50, color: 'var(--ink-3)' }}>Loading clusters…</div>}
 
       {hubs && hubs.length === 0 && (
         <div style={{ textAlign: 'center', padding: '48px 20px', border: 'var(--hairline)', borderRadius: 14, background: 'var(--bg-2)' }}>
           <div style={{ fontSize: 34, marginBottom: 10 }}>🧩</div>
-          <div style={{ fontWeight: 600, fontSize: 16, color: 'var(--ink)', marginBottom: 6 }}>No concepts built yet</div>
+          <div style={{ fontWeight: 600, fontSize: 16, color: 'var(--ink)', marginBottom: 6 }}>No clusters built yet</div>
           <div style={{ fontSize: 13.5, color: 'var(--ink-3)', maxWidth: 380, margin: '0 auto 18px', lineHeight: 1.6 }}>
-            Wortgraph groups your German words by shared English meaning — one concept, every way to say it.
+            Wortgraph groups your German words by shared English meaning — one cluster, every way to say it.
             Build them from your current deck.
           </div>
           {buildErr && <div style={{ color: 'var(--red)', fontSize: 12.5, marginBottom: 12 }}>{buildErr}</div>}
@@ -409,7 +409,7 @@ RETURN a.lemma, type(r), b.lemma`}</pre>
               loadHubs();
             } catch (e) { setBuildErr(e.message); } finally { setBuilding(false); }
           }}>
-            {building ? 'Building…' : 'Build concepts from my deck'}
+            {building ? 'Building…' : 'Build clusters from my deck'}
           </button>
           {setRoute && (
             <div style={{ marginTop: 12 }}>
@@ -422,7 +422,7 @@ RETURN a.lemma, type(r), b.lemma`}</pre>
       {hubs && hubs.length > 0 && (
         <>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <span style={{ fontSize: 12.5, color: 'var(--ink-3)' }}>{filtered.length} concept{filtered.length === 1 ? '' : 's'}</span>
+            <span style={{ fontSize: 12.5, color: 'var(--ink-3)' }}>{filtered.length} cluster{filtered.length === 1 ? '' : 's'}</span>
             <button className="btn btn-ghost btn-sm" disabled={building} onClick={async () => {
               setBuilding(true); setBuildErr(null);
               try {

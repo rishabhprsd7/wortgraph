@@ -130,7 +130,7 @@ export function Nav({ route, setRoute, dark, userId, onSwitchUser, onTryDemo, th
     { id: "progress", label: "Progress" },
   ];
   const secondaryLinks = [
-    { id: "concepts", label: "Concepts" },
+    { id: "concepts", label: "Clusters" },
     { id: "graph", label: "Graph" },
     { id: "about", label: "About" },
   ];

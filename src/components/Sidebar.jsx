@@ -6,7 +6,7 @@ export function Sidebar({ route, setRoute, counts, sources = [] }) {
     { id: "explore", label: "Explore", icon: <IconExplore /> },
     { id: "arena", label: "Arena", icon: <span style={{ fontSize: 15 }}>⊞</span> },
     { id: "progress", label: "Progress", icon: <IconProgress /> },
-    { id: "concepts", label: "Concepts", icon: <span style={{ fontSize: 15 }}>🧩</span> },
+    { id: "concepts", label: "Clusters", icon: <span style={{ fontSize: 15 }}>🧩</span> },
     { id: "graph", label: "Graph", icon: <IconGraph /> },
     { id: "agent", label: "AI Coach", icon: <span style={{ fontSize: 16 }}>✦</span> }
   ];

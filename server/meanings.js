@@ -32,10 +32,10 @@ Use the English translations below as the deciding evidence: two words share a g
 WORDS (lemma — English translation):
 ${words.map(w => `- ${w.lemma} — ${w.translation || '(no translation)'}`).join('\n')}
 
-Return ONLY a JSON array, no markdown:
-[
+Return ONLY a JSON object of this exact shape, no markdown:
+{"groups":[
   {"en":"short English label for the shared concept (1-2 words, lowercase)","words":["<exact lemma>","<exact lemma>"],"confidence":0.0-1.0}
-]
+]}
 
 RULES:
 - A group needs 2+ German words that are genuinely interchangeable. Do NOT emit single-word groups.
@@ -86,7 +86,8 @@ export async function buildMeanings(userId) {
 
   // 2. Ask Groq to cluster by shared English meaning.
   //    Clustering is classification, not generation — temperature 0 + a fixed
-  //    seed make the same deck produce the same groups run to run.
+  //    seed make the same deck produce the same groups run to run. json_object
+  //    response_format guarantees valid JSON (no more parse failures).
   const res = await fetch(GROQ_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.GROQ_KEY}` },
@@ -95,12 +96,22 @@ export async function buildMeanings(userId) {
       messages: [{ role: 'user', content: CLUSTER_PROMPT(words) }],
       temperature: 0,
       seed: 42,
-      max_tokens: 3000,
+      max_tokens: 4000,
+      response_format: { type: 'json_object' },
     }),
   });
   if (!res.ok) throw new Error(`Groq error ${res.status}: ${await res.text()}`);
   const data = await res.json();
-  const groups = parseJsonArray(data.choices[0].message.content.trim());
+  const content = data?.choices?.[0]?.message?.content || '';
+  let groups;
+  try {
+    const obj = JSON.parse(content);
+    groups = Array.isArray(obj) ? obj : (obj.groups || obj.clusters || []);
+  } catch {
+    // Fallback for any stray formatting (shouldn't happen in json_object mode).
+    groups = parseJsonArray(content.trim());
+  }
+  if (!Array.isArray(groups)) groups = [];
 
   // 3. Clear this user's existing Meaning links so the rebuild is clean.
   //    Meaning nodes are global; we only detach edges from THIS user's words,

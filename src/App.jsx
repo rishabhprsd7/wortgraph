@@ -208,7 +208,7 @@ export default function App() {
             {route === 'concepts' && (
               <>
                 <ScreenHeader
-                  title="Concepts"
+                  title="Clusters"
                   sub="Every English meaning, with all the German words that express it — one hub, many ways to say it"
                 />
                 <Concepts userId={userId} setRoute={setRoute} />
