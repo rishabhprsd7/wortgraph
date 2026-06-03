@@ -93,6 +93,9 @@ app.post('/api/groq/chat', async (req, res) => {
       body: JSON.stringify(body),
     });
     const data = await r.json().catch(() => ({}));
+    if (r.status === 401 || r.status === 403) {
+      return res.status(r.status).json({ error: 'Groq rejected the API key. Set a valid GROQ_KEY on the backend server (update it on Render if you rotated the key).' });
+    }
     res.status(r.status).json(data);
   } catch (e) {
     console.error('Groq proxy error:', e.message);

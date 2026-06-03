@@ -100,7 +100,13 @@ export async function buildMeanings(userId) {
       response_format: { type: 'json_object' },
     }),
   });
-  if (!res.ok) throw new Error(`Groq error ${res.status}: ${await res.text()}`);
+  if (!res.ok) {
+    const body = await res.text();
+    if (res.status === 401 || res.status === 403) {
+      throw new Error('Groq rejected the API key (401). Set a valid GROQ_KEY on the backend server — if you just rotated the key, update it on Render.');
+    }
+    throw new Error(`Groq error ${res.status}: ${body}`);
+  }
   const data = await res.json();
   const content = data?.choices?.[0]?.message?.content || '';
   let groups;
