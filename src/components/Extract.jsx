@@ -497,7 +497,7 @@ export function Extract({ userId }) {
           </div>
           {!loading && extracted.some(w => w.verified === false) && (
             <div style={{ margin: '0 20px', padding: '8px 12px', borderRadius: 8, background: 'var(--amber-soft)', border: '1px solid rgba(186,117,23,0.40)', fontSize: 12.5, color: 'var(--amber-text)', lineHeight: 1.5 }}>
-              Words marked <b>?</b> weren’t found in Wiktionary — they may be misspelled or not real German. They’re left unselected; verify before adding.
+              Words marked <b>?</b> weren’t found in Wiktionary or the DWDS corpus — they may be misspelled or not real German. They’re left unselected; verify before adding.
             </div>
           )}
           <div className="er-body">
@@ -526,7 +526,7 @@ export function Extract({ userId }) {
                               key={w.word}
                               className={`word-chip${isAdded ? " added" : ""}${unverified ? " unverified" : ""}`}
                               onClick={() => toggleAdd(w)}
-                              title={unverified ? "Not found in Wiktionary — may not be a real German word" : undefined}
+                              title={unverified ? "Not found in Wiktionary or the DWDS corpus — may not be a real German word" : undefined}
                             >
                               {w.article && <span className="wart">{w.article}</span>}
                               <span>{w.word}</span>

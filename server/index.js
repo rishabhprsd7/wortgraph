@@ -12,8 +12,8 @@
  *   GET  /api/graph                — nodes + edges for graph visualisation
  *   GET  /api/search/similar       — semantic similarity search (Gemini embeddings)
  *   POST /api/embed/words          — bulk-embed unembedded words
- *   POST /api/verify               — verify lemmas exist in Wiktionary (anti-hallucination)
- *   GET  /api/deck/audit           — flag deck words not found in Wiktionary
+ *   POST /api/verify               — verify lemmas (Wiktionary + DWDS corpus, anti-hallucination)
+ *   GET  /api/deck/audit           — flag deck words missing from Wiktionary AND DWDS
  *   DELETE /api/word               — remove a word from the user's deck (+ orphan cleanup)
  *   GET  /api/word/relations       — synonyms/antonyms/forms for a word (Graph-RAG output)
  *   POST /api/word/relations/refresh — re-run Graph-RAG classification for a word
@@ -557,8 +557,9 @@ app.post('/api/word/relations/refresh', async (req, res) => {
 });
 
 // ── Dictionary verification (retrieval-augmented) ─────────────────────────────
-// Look words up in Wiktionary to catch hallucinated/misspelled lemmas before
-// they reach the deck. Browser can't call Wiktionary (CORS) — server proxies it.
+// Two-pass check (Wiktionary entry, then DWDS corpus frequency) to catch
+// hallucinated lemmas while sparing real compounds/plurals. Browser can't call
+// these (CORS) — server proxies it. See server/dictionary.js.
 app.post('/api/verify', async (req, res) => {
   const { words } = req.body;
   if (!Array.isArray(words)) return res.status(400).json({ error: 'words array required' });
@@ -571,8 +572,8 @@ app.post('/api/verify', async (req, res) => {
   }
 });
 
-// Audit the user's whole deck against Wiktionary — returns only the words that
-// are definitively NOT found (likely hallucinations/misspellings). Single-word
+// Audit the user's whole deck — returns only words definitively NOT found in
+// either Wiktionary or the DWDS corpus (likely hallucinations/misspellings). Single-word
 // lemmas only; phrases and lookup failures are treated as "fine" (fail-open).
 app.get('/api/deck/audit', async (req, res) => {
   const { userId = 'default' } = req.query;

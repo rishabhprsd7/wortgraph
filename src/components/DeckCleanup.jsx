@@ -60,15 +60,15 @@ export function DeckCleanup({ userId, onChange }) {
         {state === 'idle' && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
             <p style={{ fontSize: 13, color: 'var(--ink-3)', margin: 0, flex: 1, minWidth: 220, lineHeight: 1.5 }}>
-              Checks every word in your deck against Wiktionary and flags any that don’t exist —
-              usually AI-extraction mistakes like <i>Gaukartei</i>.
+              Checks every word against Wiktionary and the DWDS corpus, flagging only words
+              missing from both — usually AI-extraction mistakes like <i>Gaukartei</i>.
             </p>
             <button className="btn btn-primary btn-sm" onClick={scan}>Scan my deck</button>
           </div>
         )}
 
         {state === 'scanning' && (
-          <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>Checking your deck against Wiktionary…</div>
+          <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>Checking your deck against Wiktionary + DWDS corpus…</div>
         )}
 
         {state === 'done' && flagged.length === 0 && (
@@ -84,7 +84,7 @@ export function DeckCleanup({ userId, onChange }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>
-                <b>{flagged.length}</b> of {total} words not found in Wiktionary. Review and remove the bad ones.
+                <b>{flagged.length}</b> of {total} words not found in Wiktionary or the DWDS corpus. Review and remove the bad ones.
               </span>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button className="btn btn-ghost btn-sm" onClick={scan}>Re-scan</button>
@@ -118,7 +118,7 @@ export function DeckCleanup({ userId, onChange }) {
               ))}
             </div>
             <p style={{ fontSize: 11.5, color: 'var(--ink-4)', margin: 0, lineHeight: 1.5 }}>
-              Note: some genuine rare compounds may be missing from Wiktionary. Only remove words you’re sure are wrong.
+              Note: a genuine rare word could still slip through. Only remove words you’re sure are wrong.
             </p>
           </div>
         )}
