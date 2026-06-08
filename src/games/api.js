@@ -4,14 +4,17 @@ export const API_URL = import.meta.env.VITE_API_URL || '';
 
 // Fetch a generated round from a graph-game endpoint.
 // Resolves to { data } or { error, message } — never throws.
-export async function fetchRound(path, { userId, exclude = [] }) {
+// `validate(body)` optionally checks the round shape; an invalid shape is
+// turned into an error round (→ "Try again" UI) instead of crashing the game.
+export async function fetchRound(path, { userId, exclude = [] }, validate) {
   if (!API_URL) return { error: 'noapi', message: 'Backend not configured.' };
   const qs = new URLSearchParams({ userId: userId || 'default' });
   if (exclude.length) qs.set('exclude', exclude.join(','));
   try {
     const res = await fetch(`${API_URL}/${path}?${qs}`);
-    const body = await res.json();
+    const body = await res.json().catch(() => ({}));
     if (!res.ok) return { error: body.error || 'error', message: body.message || 'Could not build a round.' };
+    if (validate && !validate(body)) return { error: 'badround', message: 'Could not build a valid round — try the next one.' };
     return { data: body };
   } catch {
     return { error: 'network', message: 'Network error — is the server running?' };

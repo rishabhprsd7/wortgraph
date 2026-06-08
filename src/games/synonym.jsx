@@ -6,7 +6,8 @@ export const synonym = {
   label: 'Synonym Sprint',
   blurb: 'Pick the word closest in meaning — ranked by the vector index.',
   tag: 'graph',
-  generate: ctx => fetchRound('api/arena/synonym', ctx),
+  generate: ctx => fetchRound('api/arena/synonym', ctx,
+    b => b.anchor && b.anchor.word && Array.isArray(b.options) && b.options.length >= 2 && b.answer != null),
   reviewWord: data => data.answer,
   Component: ({ data, onAnswer }) => (
     <ChoiceRound

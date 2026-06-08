@@ -33,7 +33,7 @@ Return ONLY this JSON (no markdown):
     temperature: 0.2,
     max_tokens: 600,
   });
-  const raw = data.choices[0].message.content.trim();
+  const raw = (data?.choices?.[0]?.message?.content || '').trim();
   const match = raw.match(/\{[\s\S]*\}/);
   return JSON.parse(match ? match[0] : raw);
 }

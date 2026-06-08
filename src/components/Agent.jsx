@@ -426,7 +426,9 @@ export function Agent({ userId }) {
 
   useEffect(() => { fetchAll(); }, []);
 
-  const totalWords = data ? Object.values(data.knownDistribution).reduce((a, b) => a + b, 0) : 0;
+  const knownDistribution = data?.knownDistribution || {};
+  const reviewFirst = Array.isArray(data?.reviewFirst) ? data.reviewFirst : [];
+  const totalWords = Object.values(knownDistribution).reduce((a, b) => a + b, 0);
 
   const quickPrompts = [
     'Which weak word should I review first and why?',
@@ -475,16 +477,16 @@ export function Agent({ userId }) {
             <div className="panel-b">
               {totalWords === 0
                 ? <p style={{ fontSize: 13, color: 'var(--ink-3)', margin: 0 }}>No words saved yet.</p>
-                : <CefrBar distribution={data.knownDistribution} />}
+                : <CefrBar distribution={knownDistribution} />}
             </div>
           </div>
           <div className="panel">
             <div className="panel-h"><span className="t">Review queue</span><span className="s">Low retention</span></div>
             <div className="panel-b">
-              {data.reviewFirst.length === 0
+              {reviewFirst.length === 0
                 ? <p style={{ fontSize: 13, color: 'var(--green)', margin: 0 }}>All caught up!</p>
                 : <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {data.reviewFirst.map(w => (
+                    {reviewFirst.map(w => (
                       <div key={w} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{ fontSize: 14, fontWeight: 500 }}>{w}</span>
                         <span style={{ fontSize: 12, color: 'var(--red)', background: 'var(--red-soft)', padding: '2px 8px', borderRadius: 10 }}>review</span>

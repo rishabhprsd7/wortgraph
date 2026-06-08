@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { flashcards as staticCards } from '../data/vocab';
 import { IconX, IconCheck, IconSound, IconTrophy } from './Icons';
 import { RelatedWords } from './RelatedWords';
@@ -60,6 +60,7 @@ export function Flashcards({ words: propWords, userId, sourceText }) {
   const [showSourceText, setShowSourceText] = useState(false);
   // Track unique words the user didn't know (for end-of-session summary)
   const [newWords, setNewWords] = useState(new Set());
+  const advancingRef = useRef(false); // true while a card is mid-advance (240ms)
 
   useEffect(() => {
     if (propWords) {
@@ -95,6 +96,10 @@ export function Flashcards({ words: propWords, userId, sourceText }) {
   const progress = origTotal > 0 ? Math.min((displayNum / origTotal) * 100, 100) : 0;
 
   const respond = (kind) => {
+    // Lock during the 240ms advance so a card can't be answered twice
+    // (rapid 1/2 key presses or clicks would double-count + double-post).
+    if (advancingRef.current) return;
+    advancingRef.current = true;
     const correct = kind === 'know';
     const word = card?.word ?? card?.lemma;
     if (word) postReview(word, correct, userId);
@@ -128,10 +133,12 @@ export function Flashcards({ words: propWords, userId, sourceText }) {
         const isDone = nextIdx >= newQueue.length;
         return { queue: newQueue, idx: nextIdx, done: isDone };
       });
+      advancingRef.current = false; // card advanced — accept input again
     }, 240);
   };
 
   const restart = () => {
+    advancingRef.current = false;
     setDeck({ queue: buildQueue(cards), idx: 0, done: false });
     setFlipped(false);
     setStats({ know: 0, no: 0 });

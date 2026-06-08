@@ -19,6 +19,7 @@ function buildCrossword(wordObjs) {
     .filter(w => /^[a-zA-ZäöüÄÖÜß]+$/.test(w.word) && w.word.length >= 3)
     .sort((a,b) => b.word.length - a.word.length)
     .slice(0, 12);
+  if (!sorted.length) return null; // nothing placeable → caller shows empty state
 
   const canPlace = (word, r0, c0, dir) => {
     const [dr,dc] = dir==='across'?[0,1]:[1,0];

@@ -455,7 +455,7 @@ app.get('/api/search/similar', async (req, res) => {
              w.cefr AS cefr, w.example AS example, w.exampleTranslation AS exampleTranslation,
              score, (r IS NOT NULL) AS inDeck
       ORDER BY score DESC
-    `, { embedding, limit: parseInt(limit), userId });
+    `, { embedding, limit: parseInt(limit, 10) || 8, userId });
     res.json(records.map(r => ({
       word: r.get('lemma'), article: r.get('article'), translation: r.get('translation'),
       cefr: r.get('cefr'), example: r.get('example'),
@@ -822,7 +822,7 @@ app.get('/api/agent/suggest', async (req, res) => {
       RETURN w.cefr AS cefr, count(w) AS count
     `, { userId });
     const dist = {};
-    knownRecords.forEach(r => { dist[r.get('cefr')] = r.get('count').toNumber(); });
+    knownRecords.forEach(r => { dist[r.get('cefr') || 'B1'] = num(r.get('count')); });
 
     let focusLevel = 'B1';
     for (const lvl of ['B1', 'B2', 'C1', 'C2']) {
@@ -877,18 +877,17 @@ app.post('/api/agent/chat', async (req, res) => {
 
   try {
     const systemPrompt = buildSystemPrompt({ words, weakWords, clusters, bridges, twins });
-    const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${groqKey}` },
-      body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
-        messages: [{ role: 'system', content: systemPrompt }, ...history.slice(-6), { role: 'user', content: message }],
-        temperature: 0.4,
-      }),
+    const groqRes = await groqChatRaw({ // retries on 429
+      model: 'llama-3.3-70b-versatile',
+      messages: [{ role: 'system', content: systemPrompt }, ...history.slice(-6), { role: 'user', content: message }],
+      temperature: 0.4,
     });
+    if (groqRes.status === 429) return res.status(429).json({ error: 'The coach is rate-limited right now — try again in a moment.' });
     if (!groqRes.ok) throw new Error(`Groq ${groqRes.status}: ${await groqRes.text()}`);
     const data = await groqRes.json();
-    res.json({ reply: data.choices[0].message.content });
+    const reply = data?.choices?.[0]?.message?.content;
+    if (!reply) throw new Error('Groq returned no message');
+    res.json({ reply });
   } catch (e) {
     console.error('Chat error:', e.message);
     res.status(500).json({ error: e.message });

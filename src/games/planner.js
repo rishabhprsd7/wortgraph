@@ -24,7 +24,7 @@ Rules:
     max_tokens: 200,
     messages: [{ role: 'system', content: sys }, ...history.slice(-4), { role: 'user', content: message }],
   });
-  const txt = (data.choices[0].message.content || '').trim();
+  const txt = (data?.choices?.[0]?.message?.content || '').trim();
   let parsed;
   try {
     const m = txt.match(/\{[\s\S]*\}/);

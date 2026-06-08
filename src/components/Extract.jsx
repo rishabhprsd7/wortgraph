@@ -127,7 +127,7 @@ async function extractWithGroq(text, source) {
     temperature: 0.1,
     max_tokens: 4096,
   });
-  return parseJsonArray(data.choices[0].message.content.trim());
+  return parseJsonArray((data?.choices?.[0]?.message?.content || "").trim());
 }
 
 function fallbackExtract(text) {
@@ -144,7 +144,7 @@ async function extractGrammarTopics(text) {
     temperature: 0.2,
     max_tokens: 1024,
   });
-  return parseJsonArray(data.choices[0].message.content.trim());
+  return parseJsonArray((data?.choices?.[0]?.message?.content || "").trim());
 }
 
 // Retrieval-augmented anti-hallucination: ask the server to check each lemma
@@ -194,7 +194,7 @@ Words/phrases to validate: ${list}`;
     temperature: 0.1,
     max_tokens: 2048,
   });
-  return parseJsonArray(data.choices[0].message.content.trim());
+  return parseJsonArray((data?.choices?.[0]?.message?.content || "").trim());
 }
 
 // Module-level cache: survives SPA tab switches, cleared on full page reload

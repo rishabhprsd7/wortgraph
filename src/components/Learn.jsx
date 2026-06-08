@@ -17,7 +17,7 @@ ${snippet}`;
     temperature: 0.2,
     max_tokens: 1024,
   });
-  const raw = data.choices[0].message.content.trim();
+  const raw = (data?.choices?.[0]?.message?.content || '').trim();
   const match = raw.match(/\[[\s\S]*\]/);
   return JSON.parse(match ? match[0] : raw);
 }
@@ -206,7 +206,7 @@ export function Learn({ userId, setRoute }) {
         if (list.length > 0) setSelectedSource(list[0].id);
       })
       .catch(() => {});
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     setLoadingWords(true);
@@ -220,7 +220,7 @@ export function Learn({ userId, setRoute }) {
       .then(data => setWords(Array.isArray(data) && data.length > 0 ? data : selectedSource ? [] : staticCards))
       .catch(() => setWords(staticCards))
       .finally(() => setLoadingWords(false));
-  }, [selectedSource]);
+  }, [selectedSource, userId]);
 
   const totalWords = words.length;
   const textSource = textSourceId ? sources.find(s => s.id === textSourceId) : null;
@@ -262,7 +262,7 @@ export function Learn({ userId, setRoute }) {
         >
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <span style={{ fontSize: 12, fontWeight: 600, color: !selectedSource ? 'var(--violet)' : 'var(--ink-2)' }}>All words</span>
-            <span style={{ fontSize: 11, color: 'var(--ink-4)' }}>{sources.reduce((a, s) => a + s.wordCount, 0)}w</span>
+            <span style={{ fontSize: 11, color: 'var(--ink-4)' }}>{sources.reduce((a, s) => a + (s.wordCount || 0), 0)}w</span>
           </div>
         </div>
         {sources.map(s => (
@@ -296,7 +296,7 @@ export function Learn({ userId, setRoute }) {
             value={selectedSource || ''}
             onChange={e => setSelectedSource(e.target.value || null)}
           >
-            <option value="">All words ({sources.reduce((a, s) => a + s.wordCount, 0)}w)</option>
+            <option value="">All words ({sources.reduce((a, s) => a + (s.wordCount || 0), 0)}w)</option>
             {sources.map(s => (
               <option key={s.id} value={s.id}>
                 {s.type} · {s.snippet?.slice(0, 30)}…

@@ -11,14 +11,20 @@ export const match = {
   reviewWord: data => data.word,
   generate: async ({ deck, exclude = [] }) => {
     const pool = deck.filter(w => w.word && w.translation);
-    const fresh = pool.filter(w => !exclude.includes(w.word));
     if (pool.length < 4) return { error: 'nodeck', message: 'Add at least 4 words with translations in Explore.' };
-    const target = (fresh.length ? fresh : pool)[Math.floor(Math.random() * (fresh.length ? fresh.length : pool.length))];
-    const distractors = shuffle(pool.filter(w => w.translation !== target.translation))
-      .slice(0, 3)
-      .map(w => w.translation);
+    const fresh = pool.filter(w => !exclude.includes(w.word));
+    const candidates = fresh.length ? fresh : pool;
+    const target = candidates[Math.floor(Math.random() * candidates.length)];
+    // Distractors are DISTINCT English meanings, none equal to the answer — so a
+    // semantically-correct option is never shown as "wrong", and no two buttons
+    // share a label.
+    const distractors = shuffle(
+      [...new Set(pool.map(w => w.translation))].filter(t => t !== target.translation)
+    ).slice(0, 3);
+    if (distractors.length < 1) return { error: 'nodeck', message: 'Need more words with distinct meanings in Explore.' };
     const options = shuffle([target.translation, ...distractors]);
-    return { data: { word: target.word, article: target.article || '', answer: target.translation, options } };
+    const answerIndex = options.indexOf(target.translation);
+    return { data: { word: target.word, article: target.article || '', answerIndex, options } };
   },
   Component: ({ data, onAnswer }) => (
     <ChoiceRound
@@ -32,8 +38,8 @@ export const match = {
       }
       gridClass="match-options"
       variantClass="match-opt"
-      options={data.options.map((t, i) => ({ key: `${i}:${t}`, label: t }))}
-      answerKey={data.options.map((t, i) => `${i}:${t}`).find(k => k.endsWith(`:${data.answer}`))}
+      options={data.options.map((t, i) => ({ key: String(i), label: t }))}
+      answerKey={String(data.answerIndex)}
       onResult={onAnswer}
     />
   ),

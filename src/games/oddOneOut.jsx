@@ -6,7 +6,8 @@ export const oddOneOut = {
   label: 'Odd One Out',
   blurb: 'Three words share a meaning, one doesn’t. Spot the outlier.',
   tag: 'graph',
-  generate: ctx => fetchRound('api/arena/odd-one-out', ctx),
+  generate: ctx => fetchRound('api/arena/odd-one-out', ctx,
+    b => Array.isArray(b.options) && b.options.length >= 2 && b.answer != null),
   reviewWord: () => null,
   Component: ({ data, onAnswer }) => (
     <ChoiceRound
