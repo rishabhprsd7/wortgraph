@@ -495,7 +495,7 @@ export function Crossword({ userId, setRoute }) {
                       )}
                     </div>
                     <div style={{display:'flex',alignItems:'center',gap:4,flexShrink:0}}>
-                      {isSolved && <span style={{color:'#0d6e44',fontSize:14}}>✓</span>}
+                      {isSolved && <span style={{color:'var(--green)',fontSize:14}}>✓</span>}
                       {isRev && (
                         <button onClick={e=>{e.stopPropagation();unrevealWord(idx);}}
                           style={{fontSize:10,padding:'2px 6px',borderRadius:4,border:'0.5px solid var(--cw-hint-border)',background:'var(--cw-hint-bg)',color:'var(--cw-hint-text)',cursor:'pointer',fontWeight:600}}>

@@ -412,7 +412,7 @@ export function Extract({ userId }) {
         />
         {wordCount > 0 && (
           <div style={{ textAlign: 'right', fontSize: 12, marginTop: 4,
-            color: wordCountOver ? 'var(--red)' : wordCountWarn ? '#b07000' : 'var(--ink-4)' }}>
+            color: wordCountOver ? 'var(--red)' : wordCountWarn ? 'var(--amber-text)' : 'var(--ink-4)' }}>
             {wordCount} words
             {wordCountWarn && ' · long text — consider pasting one section at a time'}
             {wordCountOver && ' · too long — paste a shorter section (under 1000 words)'}
