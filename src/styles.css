@@ -972,7 +972,7 @@ body.dark .face-front.face-review    { background: linear-gradient(180deg, rgba(
 }
 .chip.active {
   background: var(--ink);
-  color: white;
+  color: var(--bg);
   border-color: var(--ink);
 }
 
