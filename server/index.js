@@ -601,13 +601,17 @@ app.get('/api/deck/audit', async (req, res) => {
 // Remove a word from THIS user's deck. Detaches the user's ADDED edge; if no
 // other user still has the word, the Word node (and its edges) is deleted too.
 app.delete('/api/word', async (req, res) => {
-  const { userId = 'default', word } = req.body;
+  // Read from query first (reliable — some layers strip DELETE bodies), then body.
+  const userId = req.query.userId || req.body?.userId || 'default';
+  const word = req.query.word || req.body?.word;
   if (!word) return res.status(400).json({ error: 'word required' });
   try {
-    await runQuery(`
+    const del = await runQuery(`
       MATCH (u:User {id: $userId})-[r:ADDED]->(w:Word {lemma: $word})
       DELETE r
+      RETURN count(r) AS removed
     `, { userId, word });
+    const removed = num(del[0]?.get('removed'));
     // Orphan cleanup: if nobody else added this word, remove the node entirely
     // (DETACH also drops its CO_OCCURS_WITH / SYNONYM_OF / MEANS / etc edges).
     await runQuery(`
@@ -621,7 +625,7 @@ app.delete('/api/word', async (req, res) => {
       WHERE COUNT { (:Word)-[:MEANS]->(m) } < 2
       DETACH DELETE m
     `);
-    res.json({ ok: true, word });
+    res.json({ ok: true, word, removed });
   } catch (e) {
     console.error('Delete word error:', e);
     res.status(500).json({ error: e.message });

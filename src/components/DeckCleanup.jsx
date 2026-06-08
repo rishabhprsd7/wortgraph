@@ -31,12 +31,12 @@ export function DeckCleanup({ userId, onChange }) {
   const remove = async (lemma) => {
     setRemoving(prev => new Set(prev).add(lemma));
     try {
-      const r = await fetch(`${API_URL}/api/word`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: userId || 'default', word: lemma }),
-      });
+      // Query params, not a DELETE body — bodies can be dropped en route.
+      const q = `userId=${encodeURIComponent(userId || 'default')}&word=${encodeURIComponent(lemma)}`;
+      const r = await fetch(`${API_URL}/api/word?${q}`, { method: 'DELETE' });
       if (!r.ok) throw new Error(`Server ${r.status}`);
+      const data = await r.json().catch(() => ({}));
+      if (!data.removed) throw new Error(`“${lemma}” wasn’t in this deck (nothing removed)`);
       setFlagged(prev => prev.filter(w => w.lemma !== lemma));
       onChange?.();
     } catch (e) {
