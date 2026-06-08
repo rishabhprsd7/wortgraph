@@ -12,8 +12,8 @@
  */
 
 import { runQuery } from './db.js';
+import { groqChatRaw } from './groq.js';
 
-const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GROQ_MODEL = 'llama-3.3-70b-versatile';
 
 const CLASSIFY_PROMPT = (target, candidates) => `You are a German linguistics expert. Classify each candidate word's relationship to the TARGET word.
@@ -124,17 +124,14 @@ export async function classifyRelations(targetLemma, userId, opts = {}) {
     return { synonyms: [], antonyms: [], forms: [], candidateCount: 0 };
   }
 
-  // 3. Ask Groq to classify each candidate, grounded by translations
-  const res = await fetch(GROQ_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.GROQ_KEY}` },
-    body: JSON.stringify({
-      model: GROQ_MODEL,
-      messages: [{ role: 'user', content: CLASSIFY_PROMPT(target, candidates) }],
-      temperature: 0,
-      seed: 42,
-      max_tokens: 2048,
-    }),
+  // 3. Ask Groq to classify each candidate, grounded by translations.
+  //    groqChatRaw retries on 429 (these calls fire per word on save).
+  const res = await groqChatRaw({
+    model: GROQ_MODEL,
+    messages: [{ role: 'user', content: CLASSIFY_PROMPT(target, candidates) }],
+    temperature: 0,
+    seed: 42,
+    max_tokens: 2048,
   });
   if (!res.ok) throw new Error(`Groq error ${res.status}: ${await res.text()}`);
   const data = await res.json();

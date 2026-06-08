@@ -13,8 +13,8 @@
  */
 
 import { runQuery } from './db.js';
+import { groqChatRaw } from './groq.js';
 
-const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GROQ_MODEL = 'llama-3.3-70b-versatile';
 
 const CLUSTER_PROMPT = (words) => `You are a German lexicographer building synonym groups. Group these German words by shared ENGLISH meaning — but ONLY true synonyms.
@@ -87,23 +87,24 @@ export async function buildMeanings(userId) {
   // 2. Ask Groq to cluster by shared English meaning.
   //    Clustering is classification, not generation — temperature 0 + a fixed
   //    seed make the same deck produce the same groups run to run. json_object
-  //    response_format guarantees valid JSON (no more parse failures).
-  const res = await fetch(GROQ_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.GROQ_KEY}` },
-    body: JSON.stringify({
-      model: GROQ_MODEL,
-      messages: [{ role: 'user', content: CLUSTER_PROMPT(words) }],
-      temperature: 0,
-      seed: 42,
-      max_tokens: 4000,
-      response_format: { type: 'json_object' },
-    }),
+  //    response_format guarantees valid JSON. groqChatRaw retries on 429.
+  //    max_tokens kept modest: strict clustering emits few groups, and a smaller
+  //    cap lowers per-request token cost (free-tier rate limit is 12k TPM).
+  const res = await groqChatRaw({
+    model: GROQ_MODEL,
+    messages: [{ role: 'user', content: CLUSTER_PROMPT(words) }],
+    temperature: 0,
+    seed: 42,
+    max_tokens: 2500,
+    response_format: { type: 'json_object' },
   });
   if (!res.ok) {
     const body = await res.text();
     if (res.status === 401 || res.status === 403) {
       throw new Error('Groq rejected the API key (401). Set a valid GROQ_KEY on the backend server — if you just rotated the key, update it on Render.');
+    }
+    if (res.status === 429) {
+      throw new Error('Groq is rate-limited (free tier: 12k tokens/min). Wait ~30s and rebuild, or upgrade the Groq tier.');
     }
     throw new Error(`Groq error ${res.status}: ${body}`);
   }

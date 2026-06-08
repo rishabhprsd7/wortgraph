@@ -38,6 +38,7 @@ import { INSIGHT_CYPHERS, CHAT_CONTEXT, buildSystemPrompt } from './cypher.js';
 import { classifyRelations } from './relations.js';
 import { buildMeanings } from './meanings.js';
 import { verifyWords } from './dictionary.js';
+import { groqChatRaw } from './groq.js';
 
 dotenv.config();
 
@@ -69,7 +70,6 @@ function requireAdmin(req, res, next) {
 // Keeps the Groq API key server-side. The browser posts the usual OpenAI-style
 // chat body here and we forward it with the key attached. Only a whitelist of
 // fields is passed through so this can't be used as an open relay.
-const GROQ_CHAT_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GROQ_ALLOWED_MODELS = new Set(['llama-3.3-70b-versatile']);
 
 app.post('/api/groq/chat', async (req, res) => {
@@ -87,15 +87,14 @@ app.post('/api/groq/chat', async (req, res) => {
   };
   if (typeof seed === 'number') body.seed = seed;
   try {
-    const r = await fetch(GROQ_CHAT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.GROQ_KEY}` },
-      body: JSON.stringify(body),
-    });
-    const data = await r.json().catch(() => ({}));
+    const r = await groqChatRaw(body, { retries: 2 }); // auto-retries on 429
     if (r.status === 401 || r.status === 403) {
       return res.status(r.status).json({ error: 'Groq rejected the API key. Set a valid GROQ_KEY on the backend server (update it on Render if you rotated the key).' });
     }
+    if (r.status === 429) {
+      return res.status(429).json({ error: 'Groq is rate-limited (free tier: 12k tokens/min). Wait a moment and try again, or upgrade the Groq tier.' });
+    }
+    const data = await r.json().catch(() => ({}));
     res.status(r.status).json(data);
   } catch (e) {
     console.error('Groq proxy error:', e.message);
