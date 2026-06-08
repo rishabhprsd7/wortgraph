@@ -1913,3 +1913,18 @@ body.dark .arena-cypher pre { color: var(--ink-2); }
 .rw-light .rw-label-ant { color: var(--red); }
 .rw-light .rw-label-form { color: var(--violet); }
 .rw-light { border-top-color: var(--line); }
+
+/* ── Light-mode "lila" hero (dark mode keeps the original dark hero) ── */
+body:not(.dark) .hero {
+  background: linear-gradient(150deg, #6d56d6 0%, #9173ef 100%);
+}
+body:not(.dark) .hero h1 { color: rgba(255,255,255,0.88); }
+body:not(.dark) .hero h1 em { color: #ffffff; }
+body:not(.dark) .hero-sub,
+body:not(.dark) .hero-stat-lbl { color: rgba(255,255,255,0.82); }
+body:not(.dark) .hero-stat-num { color: #ffffff; }
+body:not(.dark) .hero-badge {
+  background: rgba(255,255,255,0.14);
+  border-color: rgba(255,255,255,0.32);
+  color: rgba(255,255,255,0.85);
+}
