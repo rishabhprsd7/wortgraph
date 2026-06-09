@@ -31,6 +31,7 @@ Each item: {"word":"base lemma (INFINITIVE for verbs)","pos":"noun|verb|adjectiv
 CRITICAL — VERBS CARRY THE MEANING:
 - A sentence cannot be understood without its verbs. You MUST capture the meaningful verbs, not only nouns. Aim for a balanced mix across nouns, verbs, and adjectives — roughly a third verbs whenever the text contains them.
 - Return every verb as its INFINITIVE. Reconstruct separable verbs from split or conjugated forms: "geht … hinaus" / "hinausgeht" → "hinausgehen"; "geschmissen" → "schmeißen"; "stellt … fest" → "feststellen".
+- CRITICAL for separable verbs: when a small word (hin, her, auf, ab, an, aus, ein, mit, vor, zu, weg, los, nach, fest, …) sits at the END of the clause, it is the verb's separated prefix — REATTACH it to the stem to form the infinitive. Never return the bare stem. E.g. "weist darauf hin" → "hinweisen" (NOT "weisen"); "fällt … weg" → "wegfallen" (NOT "fallen"); "nimmt … zu" → "zunehmen".
 - Capture fixed verb phrases as ONE item with pos "phrase": e.g. "auf Rechnung stellen", "in Kraft treten", "zur Verfügung stehen".
 
 INCLUDE:
