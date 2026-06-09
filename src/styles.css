@@ -1537,6 +1537,20 @@ body.dark .arena-stat.best { color: #f0c870; }
   min-height: 240px;
 }
 .arena-after { display: flex; flex-direction: column; gap: 14px; align-items: flex-start; }
+.arena-reason {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--violet-soft);
+  border: 1px solid var(--violet-line);
+  color: var(--ink-2);
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+.arena-reason-icon { flex-shrink: 0; }
 .arena-cypher {
   width: 100%;
   border: var(--hairline);

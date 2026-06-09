@@ -198,6 +198,12 @@ function ShellGame({ game, userId, setRoute }) {
 
           {answered && (
             <div className="arena-after">
+              {data.reason && (
+                <div className="arena-reason">
+                  <span className="arena-reason-icon">💡</span>
+                  <span>{data.reason}</span>
+                </div>
+              )}
               {game.tag === 'graph' && data.cypher && (
                 <details className="arena-cypher" open={showCypher}
                   onToggle={e => setShowCypher(e.target.open)}>
