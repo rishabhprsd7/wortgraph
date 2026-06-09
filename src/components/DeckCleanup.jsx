@@ -93,7 +93,7 @@ export function DeckCleanup({ userId, onChange }) {
           <input
             value={query}
             onChange={e => setQuery(e.target.value)}
-            placeholder="Search your deck — e.g. Gaukartei"
+            placeholder="Search your deck to remove a word…"
             style={{
               width: '100%', padding: '9px 13px', fontSize: 14, borderRadius: 9,
               border: '1.5px solid var(--line)', background: 'var(--bg)', color: 'var(--ink)', outline: 'none',
