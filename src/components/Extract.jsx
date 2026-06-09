@@ -6,8 +6,8 @@ import { groqChat, groqAvailable } from '../groqClient';
 const API_URL = import.meta.env.VITE_API_URL || '';
 
 const LIMITS = {
-  Text:    { min: 8,  max: 20, ratio: 0.15 },
-  YouTube: { min: 15, max: 40, ratio: 0.12 },
+  Text:    { min: 10, max: 26, ratio: 0.18 },
+  YouTube: { min: 15, max: 44, ratio: 0.14 },
 };
 
 const GRAMMAR_PROMPT = (text) =>
@@ -33,6 +33,12 @@ CRITICAL — VERBS CARRY THE MEANING:
 - Return every verb as its INFINITIVE. Reconstruct separable verbs from split or conjugated forms: "geht … hinaus" / "hinausgeht" → "hinausgehen"; "geschmissen" → "schmeißen"; "stellt … fest" → "feststellen".
 - CRITICAL for separable verbs: when a small word (hin, her, auf, ab, an, aus, ein, mit, vor, zu, weg, los, nach, fest, …) sits at the END of the clause, it is the verb's separated prefix — REATTACH it to the stem to form the infinitive. Never return the bare stem. E.g. "weist darauf hin" → "hinweisen" (NOT "weisen"); "fällt … weg" → "wegfallen" (NOT "fallen"); "nimmt … zu" → "zunehmen".
 - Capture fixed verb phrases as ONE item with pos "phrase": e.g. "auf Rechnung stellen", "in Kraft treten", "zur Verfügung stehen".
+
+PRIORITISE BY DIFFICULTY (most important selection rule):
+- The learner is B1+ and ALREADY KNOWS easy, high-frequency words. When you have to leave words out, DROP the easy ones and KEEP the harder, higher-value ones.
+- Easy → drop first: arbeiten, sparen, fühlen, finden, brauchen, zeigen, leben, spielen, kaufen, and similar everyday A2/B1 verbs.
+- Hard → always keep: separable verbs (wegfallen, hinweisen, zunehmen, abnehmen, durchsetzen), figurative/abstract verbs, low-frequency or B2/C1 verbs, and German-specific compounds.
+- A genuinely useful HARD verb must NEVER be dropped in favour of an easy one. If forced to choose between "wegfallen" and "sparen", keep "wegfallen".
 
 INCLUDE:
 - Genuinely useful German words a learner would look up: nouns, verbs, adjectives, adverbs.
