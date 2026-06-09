@@ -990,10 +990,13 @@ app.get('/api/arena/odd-one-out', async (req, res) => {
     };
     const group = [anchor, ns[0], ns[1]];          // semantically close
     const odd = ns[ns.length - 1];                 // furthest in meaning
-    // Plain-English basis for the answer (no extra LLM call) — explains that
-    // the trio cluster together in the vector index and the odd one is furthest.
+    // Plain-English basis for the answer (no extra LLM call, no jargon),
+    // as two lines: the group, then the real reason for the odd one out.
     const fmt = w => `${w.article ? w.article + ' ' : ''}${w.word}`;
-    const reason = `These four words come from your vocabulary graph, ranked by meaning using Gemini embeddings + Neo4j's vector index. ${fmt(group[0])}, ${fmt(group[1])} and ${fmt(group[2])} sit closest together (they appear in similar contexts), so they belong as a group. ${fmt(odd)}${odd.translation ? ` (${odd.translation})` : ''} is the furthest from them in meaning — that's why it's the odd one out.`;
+    const reason = [
+      `${fmt(group[0])}, ${fmt(group[1])} and ${fmt(group[2])} are the most closely related in meaning, so they form a group.`,
+      `${fmt(odd)}${odd.translation ? ` (${odd.translation})` : ''} fits the least with the other three — that's why it's the odd one out.`,
+    ];
     res.json({
       type: 'odd-one-out',
       options: shuffle([...group, odd]).map(w => ({ key: w.word, ...w })),

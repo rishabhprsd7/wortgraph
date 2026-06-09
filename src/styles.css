@@ -1551,6 +1551,8 @@ body.dark .arena-stat.best { color: #f0c870; }
   line-height: 1.55;
 }
 .arena-reason-icon { flex-shrink: 0; }
+.arena-reason-text { display: flex; flex-direction: column; gap: 6px; }
+.arena-reason-line:last-child { font-weight: 600; color: var(--ink); }
 .arena-cypher {
   width: 100%;
   border: var(--hairline);

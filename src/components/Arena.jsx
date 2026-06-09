@@ -201,7 +201,11 @@ function ShellGame({ game, userId, setRoute }) {
               {data.reason && (
                 <div className="arena-reason">
                   <span className="arena-reason-icon">💡</span>
-                  <span>{data.reason}</span>
+                  <span className="arena-reason-text">
+                    {(Array.isArray(data.reason) ? data.reason : [data.reason]).map((line, i) => (
+                      <span key={i} className="arena-reason-line">{line}</span>
+                    ))}
+                  </span>
                 </div>
               )}
               {game.tag === 'graph' && data.cypher && (
