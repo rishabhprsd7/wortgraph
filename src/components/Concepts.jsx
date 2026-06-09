@@ -157,6 +157,7 @@ export function Concepts({ userId, setRoute }) {
   const [graph, setGraph] = useState({ nodes: [], edges: [] });
   const [loadedMeanings, setLoadedMeanings] = useState({}); // id -> {en}
   const [selected, setSelected] = useState(null);
+  const [expandNote, setExpandNote] = useState(null);
 
   const containerRef = useRef(null);
   const svgRef = useRef(null);
@@ -247,12 +248,57 @@ export function Concepts({ userId, setRoute }) {
   const onMove = (e) => { if (dragging.current && dragStart.current) { dragMoved.current = true; setTransform(p => ({ ...p, x: e.clientX - dragStart.current.x, y: e.clientY - dragStart.current.y })); } };
   const onUp = () => { dragging.current = false; dragStart.current = null; };
 
-  // click a word → pull in its OTHER meanings (expand)
+  // Click a word → grow the graph from it. Two sources:
+  //  1. other meaning-clusters the word belongs to (polysemy — rare), and
+  //  2. its synonym / word-form relations, added as connected nodes (common).
   const expandWord = async (lemma) => {
-    const res = await fetch(`${API_URL}/api/word/meanings?word=${encodeURIComponent(lemma)}&userId=${encodeURIComponent(userId || 'default')}`);
-    if (!res.ok) return;
-    const others = await res.json();
-    for (const m of others) if (!loadedMeanings[m.id]) await loadMeaning(m.id);
+    const uid = encodeURIComponent(userId || 'default');
+    let added = 0;
+
+    // 1. other meanings (polysemous words)
+    try {
+      const mRes = await fetch(`${API_URL}/api/word/meanings?word=${encodeURIComponent(lemma)}&userId=${uid}`);
+      if (mRes.ok) {
+        const others = await mRes.json();
+        for (const m of others) if (!loadedMeanings[m.id]) { await loadMeaning(m.id); added++; }
+      }
+    } catch { /* ignore */ }
+
+    // 2. synonym / form relations → add as connected word nodes
+    try {
+      const rRes = await fetch(`${API_URL}/api/word/relations?word=${encodeURIComponent(lemma)}&userId=${uid}`);
+      if (rRes.ok) {
+        const rel = await rRes.json();
+        const related = [
+          ...(rel.synonyms || []).map(w => ({ ...w, rel: 'SYNONYM_OF' })),
+          ...(rel.forms || []).map(w => ({ ...w, rel: 'FORM_OF' })),
+        ];
+        if (related.length) {
+          setGraph(prev => {
+            const nodeMap = new Map(prev.nodes.map(n => [n.id, n]));
+            const edgeKey = e => `${e.source}|${e.target}|${e.hub ? 'h' : e.rel}`;
+            const edgeMap = new Map(prev.edges.map(e => [edgeKey(e), e]));
+            const src = `w:${lemma}`;
+            for (const w of related) {
+              const wk = `w:${w.lemma}`;
+              if (!nodeMap.has(wk)) {
+                nodeMap.set(wk, { id: wk, kind: 'word', lemma: w.lemma, article: w.article, translation: w.translation });
+                added++;
+              }
+              const [a, b] = [src, wk].sort();
+              const e = { source: a, target: b, rel: w.rel, hub: false };
+              if (!edgeMap.has(edgeKey(e))) { edgeMap.set(edgeKey(e), e); added++; }
+            }
+            return { nodes: [...nodeMap.values()], edges: [...edgeMap.values()] };
+          });
+        }
+      }
+    } catch { /* ignore */ }
+
+    if (added === 0) {
+      setExpandNote(lemma);
+      setTimeout(() => setExpandNote(n => (n === lemma ? null : n)), 2500);
+    }
   };
 
   const onNodeClick = (n) => {
@@ -296,6 +342,16 @@ export function Concepts({ userId, setRoute }) {
           background: 'radial-gradient(ellipse at center, #1c1b2e 0%, #0f0f1a 100%)',
           overflow: 'hidden', userSelect: 'none',
         }}>
+          {expandNote && (
+            <div style={{
+              position: 'absolute', top: 14, left: '50%', transform: 'translateX(-50%)',
+              zIndex: 5, background: 'rgba(14,12,28,0.92)', color: 'rgba(255,255,255,0.85)',
+              border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8,
+              padding: '7px 13px', fontSize: 12.5, whiteSpace: 'nowrap',
+            }}>
+              No further connections for “{expandNote}” yet.
+            </div>
+          )}
           <svg ref={svgRef} width={size.w} height={size.h} style={{ display: 'block', cursor: 'grab' }}
             onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={onUp}>
             <g transform={`translate(${transform.x},${transform.y}) scale(${transform.scale})`}>
