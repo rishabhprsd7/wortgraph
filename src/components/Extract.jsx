@@ -32,6 +32,8 @@ CRITICAL — VERBS CARRY THE MEANING:
 - A sentence cannot be understood without its verbs. You MUST capture the meaningful verbs, not only nouns. Aim for a balanced mix across nouns, verbs, and adjectives — roughly a third verbs whenever the text contains them.
 - Return every verb as its INFINITIVE. Reconstruct separable verbs from split or conjugated forms: "geht … hinaus" / "hinausgeht" → "hinausgehen"; "geschmissen" → "schmeißen"; "stellt … fest" → "feststellen".
 - CRITICAL for separable verbs: when a small word (hin, her, auf, ab, an, aus, ein, mit, vor, zu, weg, los, nach, fest, …) sits at the END of the clause, it is the verb's separated prefix — REATTACH it to the stem to form the infinitive. Never return the bare stem. E.g. "weist darauf hin" → "hinweisen" (NOT "weisen"); "fällt … weg" → "wegfallen" (NOT "fallen"); "nimmt … zu" → "zunehmen".
+- NEVER return a participle or any conjugated form — always the plain infinitive: "zugenommen" → "zunehmen" (NOT "zugenommen"); "gestiegen" → "steigen"; "gestellt" → "stellen"; "vermisst" → "vermissen".
+- List each verb only ONCE: never output both a verb and its participle (zunehmen AND zugenommen) or both a stem and its separable form (weisen AND hinweisen) — pick the single correct infinitive.
 - Capture fixed verb phrases as ONE item with pos "phrase": e.g. "auf Rechnung stellen", "in Kraft treten", "zur Verfügung stehen".
 
 PRIORITISE BY DIFFICULTY (most important selection rule):
@@ -89,6 +91,36 @@ function normalizePos(w) {
   if (['der', 'die', 'das'].includes((w.article || '').toLowerCase())) return 'noun';
   if ((w.word || '').trim().includes(' ')) return 'phrase';
   return 'noun';
+}
+
+// German separable prefixes (longest first). Only true separables — NOT the
+// inseparable ver-/be-/ent-/er-/ge-/zer- which form genuinely distinct verbs
+// (verstehen ≠ stehen), so those are deliberately excluded.
+const SEP_PREFIXES = [
+  'auseinander', 'gegenüber', 'zusammen', 'zurück', 'voran', 'voraus', 'hervor',
+  'herunter', 'hinunter', 'herauf', 'hinauf', 'heraus', 'hinaus', 'herein',
+  'hinein', 'herum', 'entgegen', 'nieder', 'empor', 'fort',
+  'ab', 'an', 'auf', 'aus', 'bei', 'ein', 'fest', 'her', 'hin', 'los',
+  'mit', 'nach', 'vor', 'weg', 'zu',
+];
+
+// Collapse a bare verb stem into its separable form when BOTH appear, e.g. the
+// model emitting "weisen" alongside "hinweisen" — keep the prefixed infinitive,
+// drop the stem. Conservative: only fires when both are present in this batch.
+function collapseVerbVariants(list) {
+  const lemmas = new Set(list.map(w => (w.word || '').trim().toLowerCase()));
+  const drop = new Set();
+  for (const w of list) {
+    if (normalizePos(w) !== 'verb') continue;
+    const stem = (w.word || '').trim().toLowerCase();
+    if (!stem) continue;
+    for (const p of SEP_PREFIXES) {
+      const prefixed = p + stem;
+      if (prefixed !== stem && lemmas.has(prefixed)) { drop.add(stem); break; }
+    }
+  }
+  if (drop.size === 0) return list;
+  return list.filter(w => !drop.has((w.word || '').trim().toLowerCase()));
 }
 
 async function withRetry(fn, attempts = 3) {
@@ -266,7 +298,7 @@ export function Extract({ userId }) {
           withRetry(() => extractWithGroq(text, source)),
           withRetry(() => extractGrammarTopics(text)).catch(() => []),
         ]);
-        const deduped = dedupeByLemma(words);
+        const deduped = collapseVerbVariants(dedupeByLemma(words));
         saveExtracted(await annotateVerification(deduped));
         saveGrammar(grammar);
       } else {
