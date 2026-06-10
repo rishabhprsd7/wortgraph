@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { CEFR_COLOR } from '../data/vocab';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 const MEANING_COLOR = '#e0a93d';   // gold — English concept hubs
@@ -373,7 +372,7 @@ export function Concepts({ userId, setRoute }) {
                 const isNb = selected && neighbors.has(n.id);
                 const dim = selected && !isNb && !isSel;
                 const r = isHub ? 16 : 11;
-                const color = isHub ? MEANING_COLOR : (CEFR_COLOR[n.cefr] || WORD_COLOR);
+                const color = isHub ? MEANING_COLOR : WORD_COLOR;
                 return (
                   <g key={n.id} style={{ cursor: 'pointer', opacity: dim ? 0.18 : 1 }}
                     onClick={() => onNodeClick(n)}>
@@ -404,8 +403,9 @@ export function Concepts({ userId, setRoute }) {
             <div style={{ fontWeight: 600, color: 'rgba(255,255,255,0.85)' }}>How to read this</div>
             <div><span style={{ color: '#ffd98a' }}>● </span>Gold = English meaning</div>
             <div><span style={{ color: '#b9b2f0' }}>● </span>Violet = German word for it</div>
-            <div>Dashed line = synonym / word-form link</div>
-            <div style={{ marginTop: 4, color: 'rgba(255,255,255,0.4)' }}>Click a German word to pull in its other meanings · scroll to zoom</div>
+            <div><span style={{ color: '#d9a94a' }}>—</span> Gold line = the meaning and its words</div>
+            <div><span style={{ color: '#9db8a8' }}>– –</span> Dashed line = synonym / word-form link</div>
+            <div style={{ marginTop: 4, color: 'rgba(255,255,255,0.4)' }}>Click a German word to pull in related words · scroll to zoom</div>
           </div>
         </div>
 
