@@ -78,10 +78,12 @@ subgraph that a table can't express.
 (:Word)-[:SYNONYM_OF|ANTONYM_OF|FORM_OF {confidence, reason}]->(:Word)
 ```
 
-**Agent tools (all three types):** 7 **Cypher Templates** (bridge words,
-high-leverage weak words, weak clusters, study priority, twin words, word
-families, stuck words) + **Similarity Search** over `word_embeddings` + a
-**Text2Cypher** fallback.
+**Agent tools (all three types):** 10 **Cypher Templates** — bridge words, study
+priority, weak words, weak topic clusters, stuck words, word pairs (collocations),
+word families, recent words, CEFR distribution, and a parameterized
+words-by-article tool whose `$article` argument the LLM fills from conversation —
+plus **Similarity Search** over `word_embeddings` (gemini-embedding-001, 3072-dim)
+and a **Text2Cypher** fallback.
 
 ## Why it was possible only with Neo4j
 
@@ -120,7 +122,7 @@ immigrants and refugees who need functional vocabulary fast and can't afford for
 it to leak away.
 
 ## Screenshots
-1. *[Aura console — the Wortgraph Coach agent with its 9 tools listed]*
+1. *[Aura console — the Wortgraph Coach agent with its 12 tools listed]*
 2. *[Aura console — the agent answering "What should I learn next?", calling
    `find_bridge_words` and citing the bridged words]*
 3. *[Neo4j Browser — `MATCH p=(:Word)-[:CO_OCCURS_WITH]-(:Word) RETURN p LIMIT 60`,
