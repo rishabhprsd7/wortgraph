@@ -129,8 +129,12 @@ it to leak away.
    the vocabulary network]*
 
 ## Links
-- **Live app:** https://wortgraph-1.onrender.com
+- **Live app:** https://wortgraph-1.onrender.com — the in-app AI Coach chat is
+  powered by the **published Aura Agent** (demo user), with a Groq fallback
 - **Repo:** https://github.com/rishabhprsd7/wortgraph
+- **MCP server:** the agent is also published as an MCP endpoint
+  (`https://mcp.neo4j.io/agent?project_id=…&agent_id=…`) — connect it to
+  Claude.ai or any MCP client and talk to the vocabulary graph from there
 
 ## Stack
 Neo4j Aura Free (graph + `word_embeddings` vector index) · Aura Agent (Cypher

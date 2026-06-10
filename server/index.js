@@ -39,6 +39,7 @@ import { classifyRelations } from './relations.js';
 import { buildMeanings } from './meanings.js';
 import { verifyWords } from './dictionary.js';
 import { groqChatRaw } from './groq.js';
+import { auraAgentChat, auraAgentConfigured } from './auraAgent.js';
 
 dotenv.config();
 
@@ -854,6 +855,20 @@ app.get('/api/agent/suggest', async (req, res) => {
 
 app.post('/api/agent/chat', async (req, res) => {
   const { userId = 'default', message, history = [] } = req.body;
+
+  // Published Aura Agent path (hackathon showcase). The agent's Cypher
+  // Template tools are scoped to the 'demo' deck, so only demo traffic is
+  // routed there — other users keep the per-user Groq + graph-context path.
+  // Any failure falls through to Groq so chat never breaks.
+  if (auraAgentConfigured() && userId === 'demo') {
+    try {
+      const reply = await auraAgentChat(message);
+      return res.json({ reply, source: 'aura-agent' });
+    } catch (e) {
+      console.error('Aura Agent failed, falling back to Groq:', e.message);
+    }
+  }
+
   const groqKey = process.env.GROQ_KEY;
   if (!groqKey) return res.status(503).json({ error: 'GROQ_KEY not configured on server' });
 
