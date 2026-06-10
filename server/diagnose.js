@@ -81,6 +81,25 @@ if (!env.NEO4J_URI || !env.NEO4J_PASSWORD) {
       `${wordCount} Words · ${n(c.get('users'))} Users · ${n(c.get('topics'))} Topics · ` +
       `${n(c.get('meanings'))} Meanings · ${n(c.get('cooc'))} CO_OCCURS_WITH · ${n(c.get('semrels'))} syn/ant/form edges`);
 
+    // Global embedding coverage (vector index is only useful for embedded words)
+    const gemb = await run(`MATCH (w:Word) RETURN count(CASE WHEN w.embedding IS NOT NULL THEN 1 END) AS e, count(w) AS t`);
+    const ge = n(gemb[0].get('e')), gt = n(gemb[0].get('t'));
+    (ge === gt ? ok : warn)('Embedding coverage (all words)', `${ge}/${gt} embedded${ge < gt ? ' — run POST /api/embed/words to fill the rest' : ''}`);
+
+    // Who actually owns the data? Critical: Aura Agent tools hardcode a userId.
+    const userRows = await run(`
+      MATCH (u:User) OPTIONAL MATCH (u)-[r:ADDED]->(w:Word)
+      RETURN u.id AS id, count(w) AS deck,
+             count(CASE WHEN r.reviewCount > 0 THEN 1 END) AS reviewed
+      ORDER BY deck DESC`);
+    log('  👤 Users in this database:');
+    for (const r of userRows) {
+      log(`       - "${r.get('id')}" → ${n(r.get('deck'))} words, ${n(r.get('reviewed'))} reviewed`);
+    }
+    if (!userRows.some(r => r.get('id') === USER_ID && n(r.get('deck')) > 0)) {
+      warn('userId mismatch', `"${USER_ID}" has no deck — re-run as: node diagnose.js <userId-from-list-above>. The Aura Agent Cypher templates must use a userId that has data!`);
+    }
+
     // This user's deck
     const deck = await run(
       `MATCH (:User {id:$u})-[r:ADDED]->(w:Word)
