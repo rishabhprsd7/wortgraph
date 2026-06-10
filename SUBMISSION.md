@@ -1,120 +1,137 @@
-# Wortgraph — Hackathon Submission
+# Wortgraph — submission post
 
-> A vocabulary graph that grows from the German texts you actually read,
-> with an AI coach that reasons over it as a graph — not a list.
-
----
-
-## Tagline (≤140 chars)
-
-**Wortgraph turns the German articles you read into a personal Neo4j vocabulary graph, then coaches you using bridge-word and cluster traversal.**
+> Paste this as a reply to the hackathon thread, with **Wortgraph** as the title.
+> Replace the two screenshot placeholders and the links before posting.
 
 ---
 
-## One-paragraph description
+## Agent Name
+**Wortgraph Coach**
 
-Most vocabulary apps drill you on a static word list. Wortgraph does the opposite: you paste German articles you're actually reading, an LLM extracts the words worth learning, and every extraction grows a personal Neo4j graph — `(User)-[:ADDED]->(Word)-[:CO_OCCURS_WITH]-(Word)-[:BELONGS_TO]->(Topic)`. An AI coach then traverses that graph to surface **bridge words** (words you don't know that connect two clusters you do know), **weak topic clusters**, and **high-leverage weak words** (low-retention words connected to many others in your deck). Every recommendation comes with the Cypher query that produced it, so the reasoning is visible, not hidden.
+## What it does
 
----
+Wortgraph turns the German you actually read — an article, a YouTube transcript,
+a news story — into a personal Neo4j knowledge graph, then coaches you over it as
+a graph instead of a flat word list.
 
-## Why this is graph-native (not just stored in a graph)
+The short version: every vocabulary app stores your words as a list. But the
+human mental lexicon isn't a list — it's a network, where you recall a word by
+travelling from a concept to its neighbours. Rote flashcards fail precisely
+because they drill isolated word→translation pairs instead of that network.
+**Wortgraph stores your vocabulary the way your brain actually stores it**, and
+the agent reasons over that structure to answer questions a flashcard app
+structurally cannot:
 
-A relational schema would have given us CRUD over `users`, `words`, and `sources`. The interesting features only exist as graph traversals:
+- *"What should I learn next?"* → the **bridge word** that connects two clusters
+  you already know (learn one word, link a whole region of your vocabulary).
+- *"Which weak word do I review first, and why?"* → the low-retention word that
+  unblocks the most other words — ranked by connectivity, not just by score.
+- *"What am I actually bad at?"* → the weakest **topic cluster**, a whole domain
+  collapsing, not one stray word.
+- *"Words about making a decision?"* → semantic recall over meaning, returning
+  **Beschluss, Entscheidung, beschließen** — not a keyword match.
 
-| Feature | Cypher pattern | Why it needs a graph |
-|---|---|---|
-| **Bridge words** | `(known)-[:CO_OCCURS_WITH]-(missing)-[:CO_OCCURS_WITH]-(known)` | Walks through the user's vocabulary neighborhood to find words missing between two clusters they already know. |
-| **Weak topic clusters** | `(u)-[r:ADDED]->(w)-[:BELONGS_TO]->(t)` aggregated by topic | Pivots through the topic relationship to find collapsing comprehension regions, not isolated weak words. |
-| **High-leverage weak words** | weak `w` with `count(neighbor)` over `CO_OCCURS_WITH` | Computes degree-centrality on the *user's subgraph* so the agent can recommend the single review that unblocks the most other words. |
-| **Twin words** | `(a)-[r:CO_OCCURS_WITH]-(b)` where `r.strength` is high | Finds collocational pairs that should be practised as a unit — emerges from edge weight. |
-| **Personal graph view** | `MATCH (u)-[:ADDED]->(a:Word)-[r:CO_OCCURS_WITH]-(b:Word)<-[:ADDED]-(u)` | The visualization is the graph projected to the user's deck — strength filterable, recolourable by Topic / CEFR / retention. |
+Every recommendation is justified by the relationship path that produced it
+("learn **Verhandlung** — it bridges 4 words you know: **Vertrag, Konferenz,
+Politik, Abkommen**"), so the agent shows its work instead of hiding it.
 
-Every Cypher query above is shown in the UI behind a "Show Cypher" toggle. Judges can see exactly what the agent is doing.
+## Dataset and why a graph fits
 
----
+**Dataset:** the learner's own reading. You paste German text or a YouTube URL;
+an LLM extracts the words worth learning, each one is verified against the
+**Wiktionary API + the DWDS corpus** (so the graph never teaches a hallucinated
+word), and the extraction grows the graph. A **Graph-RAG** pipeline then enriches
+it: candidates are retrieved from the `word_embeddings` vector index (3072-dim,
+gemini-embedding-001), an LLM classifies each as synonym / antonym / derived
+form grounded in the learner's *real* deck, and the typed edges are written back.
 
-## Schema
+**Why a graph fits — the bridge-word insight.** The flagship feature only exists
+as a traversal. A "bridge word" is a word you *don't* know that co-occurs with
+two or more words you *do* know:
 
+```cypher
+MATCH (u:User {id:'default'})-[:ADDED]->(known:Word)
+MATCH (known)-[:CO_OCCURS_WITH]-(candidate:Word)
+WHERE NOT EXISTS { (u)-[:ADDED]->(candidate) }
+WITH candidate, count(DISTINCT known) AS bridgeDegree,
+     collect(DISTINCT known.lemma)[0..5] AS connectedTo
+WHERE bridgeDegree >= 2
+RETURN candidate.lemma, bridgeDegree, connectedTo
+ORDER BY bridgeDegree DESC LIMIT 5
 ```
-(User {id})
-  -[:ADDED {addedAt, reviewCount, retention, lastReviewed}]->
-(Word {lemma, article, cefr, translation, example, exampleTranslation})
-  -[:EXTRACTED_FROM]->(Source {id, type, snippet, addedAt})
-  -[:BELONGS_TO]->(Topic {name})
-  -[:CO_OCCURS_WITH {strength, firstSeen}]-(Word)
+
+That is one `MATCH` in Cypher. In SQL it's a self-join over a co-occurrence
+table with a `NOT EXISTS` anti-join and a `HAVING count >= 2` — and it gets worse
+with every hop. The feature *is* the graph pattern.
+
+Same story for graph-aware spaced repetition: `study_priority` ranks words by
+`degree × (1 − retention)`, so a highly-connected word you barely know outranks
+an isolated one at the same score — a centrality computation over your personal
+subgraph that a table can't express.
+
+**Schema:**
+```
+(:User)-[:ADDED {retention, reviewCount}]->(:Word {lemma, article, cefr, translation, embedding[3072]})
+(:Word)-[:CO_OCCURS_WITH {strength}]-(:Word)
+(:Word)-[:BELONGS_TO]->(:Topic)
+(:Word)-[:MEANS]->(:Meaning {en})
+(:Word)-[:SYNONYM_OF|ANTONYM_OF|FORM_OF {confidence, reason}]->(:Word)
 ```
 
-Constraints: `Word.lemma`, `Topic.name`, `User.id` are unique. Edges are
-created/incremented automatically every time a user adds words from a new source.
+**Agent tools (all three types):** 7 **Cypher Templates** (bridge words,
+high-leverage weak words, weak clusters, study priority, twin words, word
+families, stuck words) + **Similarity Search** over `word_embeddings` + a
+**Text2Cypher** fallback.
 
----
+## Why it was possible only with Neo4j
 
-## The agent — clear role, useful tools, smart responses
+1. **Game/coaching logic is graph pattern-matching.** "An unknown word adjacent
+   to ≥2 known words" and "3 words sharing a meaning + 1 outlier" are single
+   Cypher matches; in SQL they're recursive joins that rot with each hop.
+2. **Graph-RAG in one round trip.** The relation pipeline calls
+   `db.index.vector.queryNodes('word_embeddings', …)` and traverses the learner's
+   `ADDED` edges **in the same query** — vector similarity and graph filtering in
+   one place. A relational DB + separate vector store would need two systems and a
+   round-trip join.
+3. **The graph is the interface.** The Clusters view renders the database itself
+   — you're looking at your own lexicon as a growing web. You can't make a SQL
+   schema a learning surface; a knowledge graph carries the meaning in its shape.
 
-**Role:** German vocabulary coach with read access to your personal Neo4j graph.
+## The wow factor
+Click any word in the Clusters view and watch it pull its semantic
+neighbours into the web in real time. Then ask the Coach "what should I learn
+next?" and it answers with a single word that wires four of your existing words
+together — and tells you which four. The recommendation and its justification
+come from the same traversal.
 
-**Tools (Cypher patterns):**
-1. *Bridge-word finder* — surfaces unknown words connected to ≥2 known words.
-2. *Weak-cluster detector* — averages retention across each Topic.
-3. *Centrality of weak words* — counts `CO_OCCURS_WITH` neighbors of low-retention words.
-4. *Twin-pair detector* — sorts user-deck word pairs by edge strength.
-5. *Conversational chat* — Groq Llama 3.3 70B grounded in the four results above plus the user's CEFR distribution and recent words.
+## The emotional factor
+Every adult learner knows the specific despair of forgetting a word you *just*
+studied — like pouring effort into a bucket with no bottom. Wortgraph reframes
+forgetting: it's not random failure, it's a thin spot in your web that you can
+*see* and strengthen. The first time your scattered word-list resolves into a map
+of your own mind, the message lands: you were never bad at this — your tool was
+storing your effort wrong.
 
-**Show your thinking:** the agent's Insights view exposes four named cards. Each has:
-- a one-line title (*"Bridge words"*),
-- the *reasoning* (why this matters),
-- the actual *result list* from the graph,
-- a toggleable *Cypher query* you can read.
+## How it helps the world
+~1.5 billion people are learning a language right now, and retention is the #1
+reason they quit. The approach is language-agnostic — swap the corpus and it
+works for any language — and it matters most exactly where it matters most:
+immigrants and refugees who need functional vocabulary fast and can't afford for
+it to leak away.
 
-The chat agent is given the same graph context and instructed to cite it ("*Add Verhandlung — it bridges 4 words you already know via Vertrag, Konferenz, Politik*") rather than answer with generic advice.
+## Screenshots
+1. *[Aura console — the Wortgraph Coach agent with its 9 tools listed]*
+2. *[Aura console — the agent answering "What should I learn next?", calling
+   `find_bridge_words` and citing the bridged words]*
+3. *[Neo4j Browser — `MATCH p=(:Word)-[:CO_OCCURS_WITH]-(:Word) RETURN p LIMIT 60`,
+   the vocabulary network]*
 
----
-
-## The unique angle
-
-**Other vocabulary apps:** static curriculum, generic word lists.
-**Wortgraph:** *your* reading material is the dataset.
-
-Read an article in *Zeit Online* about climate policy → extract → 18 words land in your graph, all linked to each other and to the *Climate* topic. Read the next article about EU diplomacy → those words connect via shared political vocabulary. After 5 articles you have a vocabulary network nobody else has, and the agent can reason about *your* gaps — not a textbook's.
-
-This is **the only way** to learn what news articles actually demand from a B1 reader, which is the gap most learners get stuck in.
-
----
-
-## Live demo flow (2-minute video)
-
-1. **Paste a real German article** in *Explore*. Watch Groq extract 12 words with translation, A2 example sentences, English translation, CEFR levels.
-2. **Open the Graph view.** Show the network forming. Color by Topic. Click a node — its neighborhood lights up.
-3. **Open the AI Coach.** Show the four insight cards. Expand "Show Cypher" on Bridge words — judges see the actual query traversing through `CO_OCCURS_WITH`.
-4. **Ask the chat agent**: *"Which weak word should I review first and why?"* It cites a specific word, shows it's connected to 6 others in your deck, recommends review order.
-5. **Flashcard a few words.** Press 1/2/3 to grade. Watch retention update in Neo4j and re-flow into the agent's recommendations on next refresh.
-
----
+## Links
+- **Live app:** https://wortgraph-1.onrender.com
+- **Repo:** https://github.com/rishabhprsd7/wortgraph
 
 ## Stack
-
-- **Neo4j Aura Free** (graph + Bolt protocol)
-- **Express** backend (Node 20) — Cypher queries, Groq orchestration
-- **Groq** (Llama 3.3 70B) — vocabulary extraction with structured JSON output, conversational coach grounded in graph context
-- **React + Vite** frontend
-- **Web Speech API** for native German pronunciation
-- Force-directed SVG layout (no extra deps) for the graph view
-
----
-
-## Try it
-
-- App: `https://wortgraph-1.onrender.com`
-- Repo: `https://github.com/rishabhprsd7/wortgraph`
-
----
-
-## Why we should win
-
-We took *Make your graph matter* literally. The schema isn't decorative —
-remove `CO_OCCURS_WITH` and the agent has nothing intelligent to say. Remove
-`BELONGS_TO` and the cluster analysis disappears. The graph is the product.
-
-We took *Show your thinking* literally too. Every recommendation is paired
-with the Cypher pattern that produced it, visible in the UI. The agent
-doesn't just answer — it shows its work.
+Neo4j Aura Free (graph + `word_embeddings` vector index) · Aura Agent (Cypher
+Templates, Similarity Search, Text2Cypher) · Gemini `gemini-embedding-001`
+(3072-dim) · Groq LLaMA 3.3 70B (extraction + Graph-RAG classification) · Express
+· React + Vite · Wiktionary + DWDS verification.
