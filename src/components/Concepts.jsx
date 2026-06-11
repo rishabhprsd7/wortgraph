@@ -232,7 +232,7 @@ export function Concepts({ userId, setRoute }) {
       e.preventDefault();
       const rect = el.getBoundingClientRect();
       const mx = e.clientX - rect.left, my = e.clientY - rect.top;
-      const sf = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+      const sf = Math.exp(-e.deltaY * 0.0015); // delta-proportional, smooth on trackpads
       setTransform(p => {
         const ns = Math.min(6, Math.max(0.15, p.scale * sf));
         const ratio = ns / p.scale;

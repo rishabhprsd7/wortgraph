@@ -168,7 +168,9 @@ export function Graph({ userId }) {
       const rect = el.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
-      const scaleFactor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+      // Proportional to scroll delta: gentle ticks zoom gently (trackpads
+      // emit many small deltas, mice few large ones — both feel smooth).
+      const scaleFactor = Math.exp(-e.deltaY * 0.0015);
       setTransform(prev => {
         const newScale = Math.min(6, Math.max(0.15, prev.scale * scaleFactor));
         const ratio = newScale / prev.scale;
