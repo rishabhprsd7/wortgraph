@@ -5,7 +5,13 @@ const API_URL = import.meta.env.VITE_API_URL || '';
 
 function renderBold(text, isUser) {
   // Aura Agent replies use markdown list markers — render them as real bullets.
-  const cleaned = text.replace(/^\s*[*-]\s+/gm, '• ');
+  // It also wraps German words in plain quotes ("Verantwortung") rather than
+  // markdown bold — promote short quoted tokens to bold and drop the quotes.
+  const cleaned = text
+    .replace(/^\s*[*-]\s+/gm, '• ')
+    .replace(/"([^"\n]{1,40})"/g, '**$1**')      // "Wort"
+    .replace(/„([^“”\n]{1,40})[“”]/g, '**$1**') // „Wort“
+    .replace(/“([^”\n]{1,40})”/g, '**$1**');              // “Wort”
   const parts = cleaned.split(/\*\*([^*]+)\*\*/g);
   return parts.map((p, i) =>
     i % 2 === 1
