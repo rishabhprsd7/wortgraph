@@ -4,7 +4,9 @@ import { CEFR_COLOR } from '../data/vocab';
 const API_URL = import.meta.env.VITE_API_URL || '';
 
 function renderBold(text, isUser) {
-  const parts = text.split(/\*\*([^*]+)\*\*/g);
+  // Aura Agent replies use markdown list markers — render them as real bullets.
+  const cleaned = text.replace(/^\s*[*-]\s+/gm, '• ');
+  const parts = cleaned.split(/\*\*([^*]+)\*\*/g);
   return parts.map((p, i) =>
     i % 2 === 1
       ? <strong key={i} style={{ color: isUser ? '#fff' : 'var(--violet)', fontWeight: 700 }}>{p}</strong>
