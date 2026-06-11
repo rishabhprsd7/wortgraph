@@ -605,6 +605,12 @@ app.delete('/api/word', async (req, res) => {
   const userId = req.query.userId || req.body?.userId || 'default';
   const word = req.query.word || req.body?.word;
   if (!word) return res.status(400).json({ error: 'word required' });
+  // The shared demo deck is the judged dataset — read-only for deletions
+  // unless a configured admin key is presented.
+  const isAdmin = process.env.ADMIN_KEY && req.headers['x-admin-key'] === process.env.ADMIN_KEY;
+  if (userId === 'demo' && !isAdmin) {
+    return res.status(403).json({ error: 'The shared demo deck is read-only.' });
+  }
   try {
     const del = await runQuery(`
       MATCH (u:User {id: $userId})-[r:ADDED]->(w:Word {lemma: $word})

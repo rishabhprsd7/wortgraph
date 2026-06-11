@@ -1,12 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
-// Two tools:
-//  1. Scan — flags words missing from BOTH Wiktionary and the DWDS corpus
-//     (clear AI-extraction mistakes), review-based delete.
-//  2. Remove any word — search the whole deck and delete anything, including
-//     real-but-unwanted words the scanner won't flag (e.g. obscure compounds).
+// Deck cleanup = the verification scanner only: flags words missing from BOTH
+// Wiktionary and the DWDS corpus (clear AI-extraction mistakes) for review-based
+// removal. The old "search and remove any word" tool was deliberately removed —
+// open deletion let anyone meddle with a deck. The shared demo deck is
+// additionally read-only on the server (DELETE /api/word returns 403).
 export function DeckCleanup({ userId, onChange }) {
   const [state, setState] = useState('idle'); // idle | scanning | done
   const [flagged, setFlagged] = useState([]);
@@ -14,19 +14,9 @@ export function DeckCleanup({ userId, onChange }) {
   const [removing, setRemoving] = useState(new Set());
   const [error, setError] = useState(null);
 
-  const [deck, setDeck] = useState(null); // full deck for the search-remove tool
-  const [query, setQuery] = useState('');
-
-  const loadDeck = useCallback(() => {
-    if (!API_URL) return;
-    fetch(`${API_URL}/api/words?userId=${encodeURIComponent(userId || 'default')}`)
-      .then(r => r.ok ? r.json() : [])
-      .then(d => setDeck(Array.isArray(d) ? d : []))
-      .catch(() => setDeck([]));
-  }, [userId]);
-  useEffect(() => { loadDeck(); }, [loadDeck]);
-
   if (!API_URL) return null;
+
+  const isDemo = (userId || 'default') === 'demo';
 
   const scan = async () => {
     setState('scanning'); setError(null);
@@ -47,11 +37,11 @@ export function DeckCleanup({ userId, onChange }) {
     try {
       const q = `userId=${encodeURIComponent(userId || 'default')}&word=${encodeURIComponent(lemma)}`;
       const r = await fetch(`${API_URL}/api/word?${q}`, { method: 'DELETE' });
+      if (r.status === 403) throw new Error('the demo deck is read-only');
       if (!r.ok) throw new Error(`Server ${r.status}`);
       const data = await r.json().catch(() => ({}));
       if (!data.removed) throw new Error(`“${lemma}” wasn’t in this deck (nothing removed)`);
       setFlagged(prev => prev.filter(w => w.lemma !== lemma));
-      setDeck(prev => (prev || []).filter(w => (w.word || w.lemma) !== lemma));
       setError(null);
       onChange?.();
     } catch (e) {
@@ -60,19 +50,6 @@ export function DeckCleanup({ userId, onChange }) {
       setRemoving(prev => { const n = new Set(prev); n.delete(lemma); return n; });
     }
   };
-
-  const removeAll = async () => {
-    for (const w of [...flagged]) await remove(w.lemma);
-  };
-
-  const q = query.trim().toLowerCase();
-  const matches = q && Array.isArray(deck)
-    ? deck.filter(w => {
-        const lemma = (w.word || w.lemma || '').toLowerCase();
-        const tr = (w.translation || '').toLowerCase();
-        return lemma.includes(q) || tr.includes(q);
-      }).slice(0, 8)
-    : [];
 
   const rowStyle = {
     display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px',
@@ -83,56 +60,23 @@ export function DeckCleanup({ userId, onChange }) {
     <div className="panel" style={{ marginBottom: 16 }}>
       <div className="panel-h">
         <span className="t">Deck cleanup</span>
-        <span className="s">Remove wrong or unwanted words</span>
+        <span className="s">Scan for AI-extraction mistakes</span>
       </div>
       <div className="panel-b">
 
-        {/* ── Remove any word (search) ── */}
-        <div style={{ marginBottom: 18, paddingBottom: 18, borderBottom: '1px solid var(--line)' }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', marginBottom: 8 }}>Remove a specific word</div>
-          <input
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            placeholder="Search your deck to remove a word…"
-            style={{
-              width: '100%', padding: '9px 13px', fontSize: 14, borderRadius: 9,
-              border: '1.5px solid var(--line)', background: 'var(--bg)', color: 'var(--ink)', outline: 'none',
-            }}
-          />
-          {q && matches.length === 0 && (
-            <div style={{ fontSize: 12.5, color: 'var(--ink-3)', marginTop: 8 }}>
-              {deck === null ? 'Loading your deck…' : 'No matching word in your deck.'}
-            </div>
-          )}
-          {matches.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
-              {matches.map(w => {
-                const lemma = w.word || w.lemma;
-                return (
-                  <div key={lemma} style={rowStyle}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <span style={{ fontWeight: 600, color: 'var(--ink)' }}>
-                        {w.article && <span style={{ color: 'var(--ink-3)', fontWeight: 400, marginRight: 5 }}>{w.article}</span>}
-                        {lemma}
-                      </span>
-                      {w.translation && <span style={{ fontSize: 12.5, color: 'var(--ink-3)', marginLeft: 8 }}>{w.translation}</span>}
-                    </div>
-                    <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }}
-                      disabled={removing.has(lemma)} onClick={() => remove(lemma)}>
-                      {removing.has(lemma) ? 'Removing…' : 'Remove'}
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+        {isDemo && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, padding: '10px 14px', borderRadius: 8, background: 'var(--bg-3)', border: '1px solid var(--line)' }}>
+            <span style={{ fontSize: 15 }}>🔒</span>
+            <span style={{ fontSize: 12.5, color: 'var(--ink-3)', lineHeight: 1.5 }}>
+              The shared demo deck is read-only — you can scan it, but removal is disabled.
+            </span>
+          </div>
+        )}
 
-        {/* ── Scan for non-words ── */}
         {state === 'idle' && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
             <p style={{ fontSize: 13, color: 'var(--ink-3)', margin: 0, flex: 1, minWidth: 220, lineHeight: 1.5 }}>
-              Or scan the whole deck for likely AI-extraction mistakes — words missing from both Wiktionary and the DWDS corpus.
+              Scan the whole deck for likely AI-extraction mistakes — words missing from both Wiktionary and the DWDS corpus.
             </p>
             <button className="btn btn-primary btn-sm" onClick={scan}>Scan my deck</button>
           </div>
@@ -146,7 +90,7 @@ export function DeckCleanup({ userId, onChange }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ fontSize: 20 }}>✅</span>
             <span style={{ fontSize: 13.5, color: 'var(--ink-2)' }}>
-              All {total} words verified — nothing flagged. Use the search above to remove anything else.
+              All {total} words verified against Wiktionary + DWDS — nothing flagged.
             </span>
           </div>
         )}
@@ -157,10 +101,7 @@ export function DeckCleanup({ userId, onChange }) {
               <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>
                 <b>{flagged.length}</b> of {total} words not found in Wiktionary or the DWDS corpus. Review and remove the bad ones.
               </span>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button className="btn btn-ghost btn-sm" onClick={scan}>Re-scan</button>
-                <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red)', borderColor: 'var(--red)' }} onClick={removeAll}>Remove all</button>
-              </div>
+              <button className="btn btn-ghost btn-sm" onClick={scan}>Re-scan</button>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {flagged.map(w => (
@@ -174,10 +115,12 @@ export function DeckCleanup({ userId, onChange }) {
                     {w.translation && <span style={{ fontSize: 12.5, color: 'var(--ink-3)', marginLeft: 8 }}>{w.translation}</span>}
                     {w.reviewCount > 0 && <span style={{ fontSize: 11, color: 'var(--ink-4)', marginLeft: 8 }}>· {w.reviewCount} reviews</span>}
                   </div>
-                  <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }}
-                    disabled={removing.has(w.lemma)} onClick={() => remove(w.lemma)}>
-                    {removing.has(w.lemma) ? 'Removing…' : 'Remove'}
-                  </button>
+                  {!isDemo && (
+                    <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }}
+                      disabled={removing.has(w.lemma)} onClick={() => remove(w.lemma)}>
+                      {removing.has(w.lemma) ? 'Removing…' : 'Remove'}
+                    </button>
+                  )}
                 </div>
               ))}
             </div>

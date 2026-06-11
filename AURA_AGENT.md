@@ -1,5 +1,11 @@
 # Building the Wortgraph Coach in Aura Agent
 
+> **STATUS: BUILT & PUBLISHED.** The agent exists in the Aura console with all
+> tools below, is published behind the invoke API (see `server/auraAgent.js`),
+> and is exposed as an MCP server. One difference from this runbook: the live
+> agent scopes its templates to **`userId: 'demo'`** (the seeded, judged deck)
+> rather than `'default'` — read `'default'` as `'demo'` throughout.
+
 This is the build runbook that turns Wortgraph from "a web app that uses AuraDB"
 into a **qualifying Aura Agent** — an agent that lives in the Neo4j Aura console
 and reasons over the graph through registered tools.

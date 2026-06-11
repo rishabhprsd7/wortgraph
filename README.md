@@ -1,10 +1,11 @@
 # Wortgraph — Graph-Powered German Vocabulary Learning
 
-**Neo4j Hackathon 2026 Submission** · Built with Neo4j Aura, React, and Express
+**Neo4j Aura Agent Hackathon 2026 Submission** · Neo4j AuraDB + a **published Aura Agent** · React · Express · MIT
 
-Wortgraph is a vocabulary learning app that treats your German words as a **graph**, not a list. Every word you save is linked to others it appeared with (CO_OCCURS_WITH), grouped into topic clusters (BELONGS_TO), and scored by how well you know it. The result: an AI coach that reasons about *connections* — not just isolated words.
+Wortgraph is a vocabulary learning app that treats your German words as a **graph**, not a list. Every word you save is linked to others it appeared with (CO_OCCURS_WITH), grouped into topic clusters (BELONGS_TO), and scored by how well you know it. The AI Coach is a **published Neo4j Aura Agent** with 12 tools — 10 Cypher templates, Similarity Search over the 3072-dim Gemini vector index, and Text2Cypher — and the live app's chat runs on it (Groq fallback if unreachable). The agent is also exposed as an **MCP server**.
 
-**Live demo:** https://wortgraph-1.onrender.com · sign in with any name, or click "Try with demo data"
+**Live demo:** https://wortgraph-1.onrender.com · sign in as `demo` to explore the judged dataset
+**Submission post:** [`SUBMISSION.md`](SUBMISSION.md) · **Agent runbook:** [`AURA_AGENT.md`](AURA_AGENT.md) · **License:** [MIT](LICENSE)
 
 ---
 
@@ -21,6 +22,11 @@ Wortgraph is a vocabulary learning app that treats your German words as a **grap
 | Arena game hub | [`src/components/Arena.jsx`](src/components/Arena.jsx) | 6 games powered by Neo4j vector search + Groq planner agent |
 | Game registry | [`src/games/registry.js`](src/games/registry.js) | Uniform contract: Odd-One-Out, Synonym Sprint, Fill-Blank, Match, Der/Die/Das, Crossword |
 | Demo dataset | [`server/seed.js`](server/seed.js) | 57 words across 7 topics + 18 bridge candidates + Graph-RAG relations |
+| **Published Aura Agent client** | [`server/auraAgent.js`](server/auraAgent.js) | OAuth client-credentials flow + invoke API; demo-user chat routes through the published agent |
+| **The agent's 12 tools** | [`AURA_AGENT.md`](AURA_AGENT.md) | Cypher templates, Similarity Search and Text2Cypher config of the published Wortgraph Coach |
+| Graph-RAG pipeline | [`server/relations.js`](server/relations.js) | Vector retrieval → LLM classification → typed edges written back |
+| Meaning hubs | [`server/meanings.js`](server/meanings.js) | Words clustered into `(:Meaning)` hubs by shared English concept |
+| Stack health check | [`server/diagnose.js`](server/diagnose.js) | One command verifies env, graph contents, vector index, and API keys |
 
 ### The "Aha!" query — Bridge Words
 
@@ -66,8 +72,8 @@ Seven pre-built graph queries power the insight panels:
 
 Each card shows the Cypher query behind the result — judges and learners can inspect the graph logic.
 
-### 2. Text2Cypher (Conversational Coach)
-The "Ask your coach" panel fetches live Neo4j context (deck, retention, bridges, clusters, twin pairs) and passes it to a Groq LLaMA model. The model reasons about the graph structure and returns bullet-point recommendations citing specific words from your data.
+### 2. Published Aura Agent (Conversational Coach)
+The "Ask your coach" panel is powered by the **published Wortgraph Coach agent** in Neo4j Aura: 10 Cypher Template tools, a Similarity Search tool over `word_embeddings`, and a Text2Cypher fallback. The Express server authenticates via OAuth client-credentials (auto-refreshed tokens, see [`server/auraAgent.js`](server/auraAgent.js)) and routes demo-user chat to the agent; any failure falls back to Groq LLaMA grounded in live graph context, so chat never breaks. The agent is also published as an MCP server endpoint.
 
 ### 3. Similarity Search (Vector Embeddings)
 Words are embedded using **Gemini gemini-embedding-001** (3072-dim) and stored on Word nodes. A Neo4j vector index (`word_embeddings`, cosine similarity) powers semantic search — type "political decisions" and get *Beschluss*, *Gesetzgebung*, *Abstimmung* ranked by meaning, not keyword match.
