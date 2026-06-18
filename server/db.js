@@ -40,8 +40,10 @@ export async function initSchema() {
     await runQuery('CREATE CONSTRAINT user_unique  IF NOT EXISTS FOR (u:User)  REQUIRE u.id    IS UNIQUE');
 
     if (process.env.GEMINI_KEY) {
-      // gemini-embedding-001 produces 3072-dim vectors — recreate index to ensure correct dimensions.
-      await runQuery('DROP INDEX word_embeddings IF EXISTS');
+      // gemini-embedding-001 produces 3072-dim vectors. Create only if missing —
+      // never DROP on boot: on the free tier the server reboots often, and
+      // dropping leaves a window where semantic search / Graph-RAG hit a
+      // half-built index. The index persists in Aura between restarts.
       await runQuery(`
         CREATE VECTOR INDEX word_embeddings IF NOT EXISTS
         FOR (w:Word) ON (w.embedding)
