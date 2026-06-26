@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { extractedWords, sampleText } from '../data/vocab';
 import { IconKeyboard, IconPaste, IconCheck } from './Icons';
 import { groqChat, groqAvailable } from '../groqClient';
+import { useSpeechToText } from '../useSpeechToText';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
@@ -266,8 +267,25 @@ export function Extract({ userId }) {
   const [invalidWords, setInvalidWords] = useState([]);
   const [mode, setMode] = useState('text'); // 'text' | 'custom'
 
-  // Clear results when switching modes
+  // Live German dictation → streams into the text box. Final chunks are
+  // appended to whatever's already there so you can mix typing, pasting and
+  // speaking. textRef avoids a stale closure over `text`.
+  const textRef = useRef(text);
+  textRef.current = text;
+  const {
+    supported: speechSupported, listening, interim, error: sttError,
+    start: startDictation, stop: stopDictation,
+  } = useSpeechToText({
+    lang: 'de-DE',
+    onFinalText: (chunk) => {
+      const base = textRef.current ? textRef.current.replace(/\s+$/, '') + ' ' : '';
+      saveText(base + chunk);
+    },
+  });
+
+  // Clear results when switching modes (and stop any in-progress dictation)
   useEffect(() => {
+    stopDictation();
     saveExtracted([]);
     saveAdded(() => new Set());
     setSaved(false);
@@ -449,6 +467,44 @@ export function Extract({ userId }) {
           value={text}
           onChange={e => saveText(e.target.value)}
         />
+
+        {/* Live German voice dictation (Web Speech API) — streams into the box. */}
+        {speechSupported ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 12 }}>
+            <button
+              type="button"
+              className="btn btn-sm"
+              onClick={listening ? stopDictation : startDictation}
+              style={listening
+                ? { background: 'var(--red)', color: '#fff', border: 'none' }
+                : { background: 'var(--bg-2)', color: 'var(--ink-2)', border: 'var(--hairline-strong)' }}
+            >
+              {listening ? '■ Stop listening' : '🎤 Dictate in German'}
+            </button>
+            {listening ? (
+              <span style={{ fontSize: 12.5, color: 'var(--ink-3)', display: 'inline-flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--red)', flexShrink: 0 }} />
+                Listening… speak German, or play a video near your mic
+                {interim && <span style={{ fontStyle: 'italic', color: 'var(--ink-4)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>“{interim}”</span>}
+              </span>
+            ) : (
+              <span style={{ fontSize: 12, color: 'var(--ink-4)' }}>
+                Speak, or point your mic at German audio — words appear in the box, then extract as usual.
+              </span>
+            )}
+            {sttError === 'not-allowed' && (
+              <span style={{ fontSize: 12, color: 'var(--red)' }}>Microphone blocked — allow mic access and try again.</span>
+            )}
+            {sttError === 'network' && (
+              <span style={{ fontSize: 12, color: 'var(--amber-text)' }}>Speech service unreachable — check your connection.</span>
+            )}
+          </div>
+        ) : (
+          <div style={{ marginTop: 12, fontSize: 12, color: 'var(--ink-4)' }}>
+            🎤 Voice input needs Chrome, Edge, or Safari.
+          </div>
+        )}
+
         {wordCount > 0 && (
           <div style={{ textAlign: 'right', fontSize: 12, marginTop: 4,
             color: wordCountOver ? 'var(--red)' : wordCountWarn ? 'var(--amber-text)' : 'var(--ink-4)' }}>
